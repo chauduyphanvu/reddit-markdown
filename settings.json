@@ -1,5 +1,5 @@
 {
-    "version": "1.1.0",
+    "version": "1.2.0",
     "update_check_on_startup": true,
     "show_upvotes": true,
     "reply_depth_color_indicators": true,
@@ -7,5 +7,12 @@
     "show_auto_mod_comment": false,
     "overwrite_existing_file": false,
     "save_posts_by_subreddits": true,
+    "show_timestamp": true,
+    "filtered_message": "REMOVED DUE TO CUSTOM FILTER(S)",
+    "filters": {
+        "keywords": [],
+        "min_upvotes": 2,
+        "authors": []
+    },
     "default_save_location": "DEFAULT_REDDIT_SAVE_LOCATION"
 }
