@@ -28,6 +28,7 @@ filtered_message = settings["filtered_message"]
 filtered_keywords = settings['filters']['keywords']
 filtered_min_upvotes = settings['filters']['min_upvotes']
 filtered_authors = settings['filters']['authors']
+filtered_regex = settings['filters']['regex']
 
 directory = settings["default_save_location"]
 
@@ -65,6 +66,7 @@ puts "\n"
 # https://www.reddit.com/r/pcmasterrace/comments/101kjyq/my_dad_has_been_playing_civilization_almost_daily/
 puts "=> Enter the link to the Reddit post that you want to save. Separate multiple links with commas."
 puts "=> Want a demo? Enter \"demo\"! Want a surprise? Enter \"surprise\"!"
+puts "=> That's not enough? Enter \"snapshot\" to save what's on r/popular right now!"
 urls = gets.chomp
 
 while urls == nil || urls == ""
@@ -194,7 +196,7 @@ def resolve_full_path(url, directory, overwrite_existing_file_enabled, save_post
     "#{full_path}.md"
 end
 
-def apply_filter(author, text, upvotes, filtered_keywords, filtered_authors, min_upvotes, filtered_message)
+def apply_filter(author, text, upvotes, filtered_keywords, filtered_authors, min_upvotes, filtered_regex, filtered_message)
     filtered_keywords.each do |keyword|
         if text.include? keyword
             return filtered_message
@@ -203,6 +205,12 @@ def apply_filter(author, text, upvotes, filtered_keywords, filtered_authors, min
 
     filtered_authors.each do |child_reply_author|
         if author == child_reply_author
+            return filtered_message
+        end
+    end
+
+    filtered_regex.each do |regex|
+        if text.match(regex)
             return filtered_message
         end
     end
@@ -223,6 +231,16 @@ if urls.include?("surprise")
     puts "=> Surprise mode enabled. Saving a random post from r/popular..."
     json = download_post_json("https://www.reddit.com/r/popular")
     urls = "https://www.reddit.com" + json['data']['children'].sample['data']['permalink']
+end
+
+if urls.include?("snapshot")
+    puts "=> Snapshot mode enabled. Saving all current posts from r/popular..."
+    json = download_post_json("https://www.reddit.com/r/popular")
+
+    urls = []
+    json['data']['children'].each do |post|
+        urls.push("https://www.reddit.com" + post['data']['permalink'])
+    end
 end
 
 urls = urls.split(/, |,/)
@@ -289,6 +307,7 @@ urls.each_with_index do |url, index|
         end
 
         author_field = ""
+        # TODO: If [deleted] is the author, it should still show [deleted] but not link to the user profile.
         if author != "[deleted]"
             author_field = "[#{author}](https://www.reddit.com/user/#{author})"
         end
@@ -319,7 +338,10 @@ urls.each_with_index do |url, index|
         reply_formatted = reply_formatted.squeeze("\r")
         reply_formatted = reply_formatted.gsub(/\n/, "\n\n\t")
         reply_formatted = reply_formatted.gsub(/&gt;/, ">")
-        reply_formatted = apply_filter(author, reply_formatted, upvotes, filtered_keywords, filtered_authors, filtered_min_upvotes, filtered_message)
+
+        # See if reply contain u/username and replace it with [username](https://www.reddit.com/user/username)
+        reply_formatted = reply_formatted.gsub(/u\/(\w+)/, '[u/\1](https://www.reddit.com/user/\1)')
+        reply_formatted = apply_filter(author, reply_formatted, upvotes, filtered_keywords, filtered_authors, filtered_min_upvotes, filtered_regex, filtered_message)
 
         content += "\t#{reply_formatted}\n\n"
 
@@ -329,6 +351,7 @@ urls.each_with_index do |url, index|
             content += "\t" * child_reply['depth']
             author = child_reply['child_reply']['data']['author']
 
+            # TODO: If [deleted] is the author, it should still show [deleted] but not link to the user profile.
             author_field = ""
             if author != "[deleted]"
                 author_field = "[#{author}](https://www.reddit.com/user/#{author})"
@@ -354,7 +377,10 @@ urls.each_with_index do |url, index|
             # Also if the child reply body contains `&gt;`, replace it with `>` so quotes properly show up.
             child_reply_formatted = child_reply['child_reply']['data']['body'].gsub(/\n/, "\n#{tabs}")
             child_reply_formatted = child_reply_formatted.gsub(/&gt;/, ">")
-            child_reply_formatted = apply_filter(author, child_reply_formatted, upvotes, filtered_keywords, filtered_authors, filtered_min_upvotes, filtered_message)
+
+            # See if reply contain u/username and replace it with [username](https://www.reddit.com/user/username)
+            child_reply_formatted = child_reply_formatted.gsub(/u\/(\w+)/, '[u/\1](https://www.reddit.com/user/\1)')
+            child_reply_formatted = apply_filter(author, child_reply_formatted, upvotes, filtered_keywords, filtered_authors, filtered_min_upvotes, filtered_regex, filtered_message)
 
             # The formatted child reply still needs to be indented by x number of tabs for the first line.
             content += "#{tabs}#{child_reply_formatted}\n\n"
