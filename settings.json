@@ -13,7 +13,7 @@
         "keywords": [],
         "min_upvotes": 2,
         "authors": [],
-        "regex": []
+        "regexes": []
     },
     "default_save_location": "DEFAULT_REDDIT_SAVE_LOCATION"
 }

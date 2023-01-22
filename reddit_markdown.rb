@@ -39,7 +39,7 @@ filtered_message = settings["filtered_message"]
 filtered_keywords = settings['filters']['keywords']
 filtered_min_upvotes = settings['filters']['min_upvotes']
 filtered_authors = settings['filters']['authors']
-filtered_regex = settings['filters']['regex']
+filtered_regexes = settings['filters']['regexes']
 
 directory = settings["default_save_location"]
 
@@ -436,7 +436,7 @@ urls.each_with_index do |url, index|
 
             # See if reply contain u/username and replace it with [username](https://www.reddit.com/user/username)
             reply_formatted = reply_formatted.gsub(/u\/(\w+)/, '[u/\1](https://www.reddit.com/user/\1)')
-            reply_formatted = apply_filter(author, reply_formatted, upvotes, filtered_keywords, filtered_authors, filtered_min_upvotes, filtered_regex, filtered_message)
+            reply_formatted = apply_filter(author, reply_formatted, upvotes, filtered_keywords, filtered_authors, filtered_min_upvotes, filtered_regexes, filtered_message)
         end
 
         content += "\t#{reply_formatted}\n\n"
@@ -492,7 +492,7 @@ urls.each_with_index do |url, index|
 
                 # See if reply contain u/username and replace it with [username](https://www.reddit.com/user/username)
                 child_reply_formatted = child_reply_formatted.gsub(/u\/(\w+)/, '[u/\1](https://www.reddit.com/user/\1)')
-                child_reply_formatted = apply_filter(author, child_reply_formatted, upvotes, filtered_keywords, filtered_authors, filtered_min_upvotes, filtered_regex, filtered_message)
+                child_reply_formatted = apply_filter(author, child_reply_formatted, upvotes, filtered_keywords, filtered_authors, filtered_min_upvotes, filtered_regexes, filtered_message)
             end
 
             # The formatted child reply still needs to be indented by x number of tabs for the first line.
