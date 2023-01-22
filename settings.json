@@ -5,7 +5,7 @@
     "reply_depth_color_indicators": true,
     "line_break_between_parent_replies": false,
     "show_auto_mod_comment": false,
-    "overwrite_existing_file": true,
+    "overwrite_existing_file": false,
     "save_posts_by_subreddits": true,
     "show_timestamp": true,
     "filtered_message": "REMOVED DUE TO CUSTOM FILTER(S)",
