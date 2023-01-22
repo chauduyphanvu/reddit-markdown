@@ -1,3 +1,26 @@
+## 1.3.0 (Jan 21, 2023)
+### New
+* **Filter replies against user-defined regex(es)**
+* **Save all posts from *r/popular* at the moment**
+	* Type `snapshot` when prompted.
+* **Support embedded YouTube media in post body**
+    * Additional support for other video platforms will be added in the future.
+### Improvements
+* **Support post timestamp**
+	* Reply timestamps were added in v1.2.0
+* **Render if a post has been locked by mods**
+* **Hyperlink other author(s) mentioned in replies**
+* **Render post-level upvotes in addition to reply-level upvotes**
+* **Render upvotes over 1000 with the `k` notation**
+* **Indicate whether a comment has been deleted by the user**
+* **Handle checking for updates getting rate limited**
+* **Safely handle JSON payload parsing**
+* **Handle URL validation**
+* **Render replies count (approx.)**
+### Bug Fixes
+* **Fix bot replies broken when there's a signature**
+* **Fix final reply broken when rendered**
+
 ## 1.2.0 (Jan 14, 2023)
 ### New
 * **Add a demo**
