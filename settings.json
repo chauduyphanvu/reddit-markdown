@@ -1,5 +1,6 @@
 {
-    "version": "1.3.0",
+    "version": "1.4.0",
+    "file_format": "md",
     "update_check_on_startup": true,
     "show_upvotes": true,
     "reply_depth_color_indicators": true,

@@ -22,7 +22,8 @@ This Ruby script saves Reddit posts into local Markdown files for easy reading, 
 	* Don't have a link handy? Type `demo` to see how this script works! Want a surprise? Type `surprise` to save a random post from r/popular!
 	* Feeling adventurous? Type `snapshot` to save all posts from r/popular at the moment!
 6. **Enter the path where you want to save the Markdown file(s)**.
-    * Leave blank to save in the same folder (where you called the script from)
+	* Leave blank to save in the same folder (where you called the script from)
+	* Starting from v1.4.0, posts can also be saved as HTML files. To do so, get the updated `settings.json` file from that release, and use the `file_format` option. Accepted values are `html` and `md`.
 	* Tip: Starting with the 1.1.0 release, you can set a default path in the `settings.json` file. See [Custom Settings](#custom-settings) for details.
 
 ## Custom Settings
@@ -35,6 +36,7 @@ If you are using an older release, make sure to get the latest version of the sc
 | Setting Flag | Description | Possible values |
 | --- | --- | --- |
 | "version" | The version of the script that the settings are compatible with. Do NOT change. | Semantically versioned string |
+| "file_format" | The file format for saved Reddit posts | `md` or `html` |
 | "update_check_on_startup" | Whether to check for updates on startup | true/false |
 | "show_upvotes" | Whether to render the number of upvotes | true/false |
 | "reply_depth_color_indicators" | Whether to render color indicators for reply depths | true/false |
@@ -62,7 +64,7 @@ If you are using an older release, make sure to get the latest version of the sc
 * **Runs anywhere Ruby runs**
 	* Ruby is cross-platform
 	* Core logic is platform-agnostic so it can be translated into any other programming languages to run anywhere
-* **Markdown for universality**
+* **Markdown and HTML for universality**
 
 ## Limitations
 * **Only replies that are visible by default on the web are saved**
