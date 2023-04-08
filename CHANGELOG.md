@@ -1,3 +1,12 @@
+## 1.4.0 (Apr 08, 2023)
+### New
+* **Add support for saving posts as HTML files**
+    * Get the updated `settings.json` file from this release, and use the `file_format` option. Accepted values are `html` and `md`.
+### Improvements
+* **Minor refactoring for ease of maintenance**
+### Bug Fixes
+* **Fix a Reddit encoding issue with `&amp;` in post body that cause image URLs to be broken**
+
 ## 1.3.0 (Jan 21, 2023)
 ### New
 * **Filter replies against user-defined regex(es)**

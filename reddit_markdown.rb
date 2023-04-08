@@ -2,28 +2,27 @@ require 'rubygems'
 require 'json'
 require 'open-uri'
 require 'uri'
+require 'kramdown'
 
 puts "ℹ️This script saves the content (body and replies) of a Reddit post to a Markdown file for easy reading, sharing, and archiving."
 
 unless File.exist?("settings.json")
-    puts "❌Error: settings.json not found. Please get a copy of it from https://github.com/chauduyphanvu/reddit-markdown/releases. Exiting..."
-    exit
+    abort "❌Error: settings.json not found. Please get a copy of it from https://github.com/chauduyphanvu/reddit-markdown/releases. Exiting..."
 end
 
 begin
     settings = JSON.parse(File.read("settings.json"))
 rescue JSON::ParserError
-    puts "❌Error: Failed to parse script settings. Ensure that settings.json is valid JSON. Exiting..."
-    exit
+    abort "❌Error: Failed to parse script settings. Ensure that settings.json is valid JSON. Exiting..."
 end
 
 # It is possible for settings.json to be a valid but empty JSON object
 if settings == nil || settings.empty?
-    puts "❌Error: settings.json is empty. Try to get a fresh copy of it from https://github.com/chauduyphanvu/reddit-markdown/releases. Exiting..."
-    exit
+    abort "❌Error: settings.json is empty. Try to get a fresh copy of it from https://github.com/chauduyphanvu/reddit-markdown/releases. Exiting..."
 end
 
 version = settings['version']
+file_format = settings['file_format']
 update_check_on_startup = settings['update_check_on_startup']
 show_auto_mod_comment = settings['show_auto_mod_comment']
 line_break_enabled = settings['line_break_between_parent_replies']
@@ -101,8 +100,7 @@ if directory == "DEFAULT_REDDIT_SAVE_LOCATION"
     if directory == nil || directory == ""
         puts "❌Error: DEFAULT_REDDIT_SAVE_LOCATION environment variable not set. You must set it to a valid path before running the script.
         If you'd rather be prompted for the save location every time, set the default_save_location value in settings.json to \"\"."
-        puts "Exiting..."
-        exit
+        abort "Exiting..."
     end
 else
     puts "=> Enter a full path to save the post(s) to. Hit Enter/Return for current directory, which is #{Dir.pwd}."
@@ -138,100 +136,104 @@ def download_post_json(url)
 end
 
 # Get all the child replies to a parent (top-level) reply.
+#
+# @param [Object] reply The parent reply.
+#
+# @return [Hash] A hash of child replies.
 def get_replies(reply)
     child_replies = {}
 
-    if reply['data']['replies'] != ""
-        reply['data']['replies']['data']['children'].each do |child_reply|
-            child_reply_id = child_reply['data']['id']
-            child_reply_depth = child_reply['data']['depth']
-            child_reply_body = child_reply['data']['body']
+    replies_data = reply['data']['replies']
+    return child_replies if replies_data.nil? || replies_data.empty?
 
-            # On the web, Reddit hides a subset of replies that you'd have to manually click to see.
-            # Those replies typically have very low upvotes and are usually just spam.
-            # This script preserves that experience and skips replies that fall into that category.
-            if child_reply_body == nil || child_reply_body == ""
-                next
-            end
+    replies_data['data']['children'].each do |child_reply|
+        child_reply_id = child_reply['data']['id']
+        child_reply_depth = child_reply['data']['depth']
+        child_reply_body = child_reply['data']['body']
 
-            child_replies[child_reply_id] = {
-              'depth' => child_reply_depth,
-              'child_reply' => child_reply
-            }
+        # On the web, Reddit hides a subset of replies that you'd have to manually click to see.
+        # Those replies typically have very low upvotes and are usually just spam.
+        # This script preserves that experience and skips replies that fall into that category.
+        next if child_reply_body.nil? || child_reply_body.empty?
 
-            child_replies.merge!(get_replies(child_reply))
-        end
+        child_replies[child_reply_id] = {
+          'depth' => child_reply_depth,
+          'child_reply' => child_reply
+        }
+
+        child_replies.merge!(get_replies(child_reply))
     end
 
     child_replies
 end
 
-# Resolve the file name based on a number of rules.
-def resolve_full_path(url, directory, overwrite_existing_file_enabled, save_posts_by_subreddits, subreddit)
+def get_file_base_and_ext(url, directory, save_posts_by_subreddits, subreddit, file_format)
     file_name = url.split("/").last
     subreddit = subreddit.gsub("r/", "")
-    full_path = directory
+    directory_path = save_posts_by_subreddits ? File.join(directory, subreddit) : directory
 
-    if save_posts_by_subreddits == true
-        full_path = "#{directory}/#{subreddit}"
+    FileUtils.mkdir_p(directory_path) if save_posts_by_subreddits && !File.directory?(directory_path)
 
-        unless File.directory?(full_path)
-            FileUtils.mkdir_p(full_path)
-        end
+    if file_name.nil? || file_name.empty?
+        puts "⚠️ Could not get file name from URL. Using current timestamp as file name..."
+        return File.join(directory_path, "reddit_no_name_#{Time.now.to_i}.md")
     end
 
-    # If we have to use a timestamp, return early since there's no need to worry about duplicate file names.
-    if file_name == nil || file_name == ""
-        puts "⚠️Could not get file name from URL. Using current timestamp as file name..."
-        return "#{full_path}/reddit_no_name_#{Time.now.to_i}"
+    directory_path = File.join(directory_path, file_name)
+    file_base, _ = directory_path.split('.', 2)
+
+    if file_format == "html"
+        file_ext = "html"
+    else
+        file_ext = "md"
     end
 
-    full_path = "#{full_path}/#{file_name}"
-    duplicates = 0
-
-    if File.exist?("#{full_path}.md")
-        if overwrite_existing_file_enabled == true
-            puts "⚠️File with name #{file_name}.md already exists. Overwriting is enabled. Overwriting..."
-            return "#{full_path}.md"
-        end
-
-        duplicates += 1
-
-        while File.exist?("#{full_path}_#{duplicates}.md")
-            duplicates += 1
-        end
-    end
-
-    if duplicates > 0
-        puts "ℹ️File with name #{file_name}.md already exists. Overwriting is disabled. Renaming to #{file_name}_#{duplicates}.md...\n"
-        full_path = "#{full_path}_#{duplicates}"
-    end
-
-    "#{full_path}.md"
+    [file_base, file_ext]
 end
 
-def apply_filter(author, text, upvotes, filtered_keywords, filtered_authors, min_upvotes, filtered_regex, filtered_message)
-    filtered_keywords.each do |keyword|
-        if text.include? keyword
-            return filtered_message
-        end
+def handle_duplicate_files(file_base, file_ext, overwrite_existing_file_enabled)
+    if overwrite_existing_file_enabled
+        puts "⚠️ File with name #{File.basename(file_base)}.#{file_ext} already exists. Overwriting is enabled. Overwriting..."
+        return "#{file_base}.#{file_ext}"
     end
 
-    filtered_authors.each do |child_reply_author|
-        if author == child_reply_author
-            return filtered_message
-        end
+    duplicates = 1
+
+    while File.exist?("#{file_base}_#{duplicates}.#{file_ext}")
+        duplicates += 1
     end
 
-    filtered_regex.each do |regex|
-        if text.match(regex)
-            return filtered_message
-        end
+    puts "ℹ️ File with name #{File.basename(file_base)}.#{file_ext} already exists. Overwriting is disabled. Renaming to #{File.basename(file_base)}_#{duplicates}.#{file_ext}...\n"
+    "#{file_base}_#{duplicates}.#{file_ext}"
+end
+
+def resolve_full_path(url, directory, overwrite_existing_file_enabled, save_posts_by_subreddits, subreddit, file_format)
+    file_base, file_ext = get_file_base_and_ext(url, directory, save_posts_by_subreddits, subreddit, file_format)
+
+    if File.exist?("#{file_base}.#{file_ext}")
+        return handle_duplicate_files(file_base, file_ext, overwrite_existing_file_enabled)
     end
 
-    if upvotes < min_upvotes
-        return filtered_message
-    end
+    "#{file_base}.#{file_ext}"
+end
+
+# Filters out replies that meet any one of the following criteria:
+#
+# @param [String] author author of the reply
+# @param [String] text the text to be filtered
+# @param [Integer] upvotes the number of upvotes the reply has
+# @param [Array] filtered_keywords a list of keywords that, if found in the text, will cause the reply to be filtered
+# @param [Array] filtered_authors a list of authors that, if found in the text, will cause the reply to be filtered
+# @param [Integer] min_upvotes the minimum number of upvotes a reply must have to not be filtered
+# @param [Array] filtered_regex a list of regex patterns that, if found in the text, will cause the reply to be filtered
+# @param [String] filtered_message the message to be displayed if the reply is filtered
+#
+# @return [String] The original text if it passes the filter, or the filtered_message if it doesn't.
+def apply_filter(author, text, upvotes, filtered_keywords = [], filtered_authors = [], min_upvotes = 0, filtered_regex = [], filtered_message = "Filtered")
+    return filtered_message if filtered_keywords.any? { |keyword| text.include?(keyword) }
+    return filtered_message if filtered_authors.any? { |child_reply_author| author == child_reply_author }
+    return filtered_message if filtered_regex.any? { |regex| text.match(regex) }
+    return filtered_message if upvotes < min_upvotes
 
     text
 end
@@ -247,8 +249,7 @@ if urls == "surprise"
     begin
         json = download_post_json("https://www.reddit.com/r/popular")
     rescue OpenURI::HTTPError => e
-        puts "❌Error downloading r/popular JSON payload: #{e.message}. Exiting..."
-        exit
+        abort "❌Error downloading r/popular JSON payload: #{e.message}. Exiting..."
     end
 
     urls = "https://www.reddit.com" + json['data']['children'].sample['data']['permalink']
@@ -260,8 +261,7 @@ if urls == "snapshot"
     begin
         json = download_post_json("https://www.reddit.com/r/popular")
     rescue OpenURI::HTTPError => e
-        puts "❌Error downloading r/popular JSON payload: #{e.message}. Exiting..."
-        exit
+        abort "❌Error downloading r/popular JSON payload: #{e.message}. Exiting..."
     end
 
     urls = ""
@@ -347,7 +347,7 @@ urls.each_with_index do |url, index|
     content += lock_message + "\n\n" if lock_message != ""
 
     # The post body as text, if any
-    post_text = "#{post_info[0]['data']['selftext'].gsub(/\n/, "\n> ")}"
+    post_text = "#{post_info[0]['data']['selftext'].gsub(/\n/, "\n> ").gsub(/&amp;/, "&").gsub(/&lt;/, "<").gsub(/&gt;/, ">").gsub(/&quot;/, "\"")}"
 
     # The post body as a media, if any
     # This will get the first one if there's only one.
@@ -505,9 +505,13 @@ urls.each_with_index do |url, index|
     end
 
     content += "\n"
-    full_path = resolve_full_path(url, directory, overwrite_existing_file_enabled, save_posts_by_subreddits, subreddit)
+    full_path = resolve_full_path(url, directory, overwrite_existing_file_enabled, save_posts_by_subreddits, subreddit, file_format)
 
     puts "🔃Saving...\n"
+
+    if file_format == "html"
+        content = Kramdown::Document.new(content).to_html
+    end
 
     File.open(full_path, "w") { |file| file.write(content) }
 
