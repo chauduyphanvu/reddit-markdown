@@ -47,27 +47,28 @@ directory = settings["default_save_location"]
 # The more replies a post has, the more replies get hidden by default, and the more inaccurate this count will be.
 replies_count = {}
 
-if update_check_on_startup == true
-    begin
-        commits = JSON.parse(URI.open("https://api.github.com/repos/chauduyphanvu/reddit-markdown/releases").read)
+def check_for_updates(current_version)
+    commits = JSON.parse(URI.open("https://api.github.com/repos/chauduyphanvu/reddit-markdown/releases").read)
 
-        if commits.length == 0
-            puts "Warning: Unable to fetch latest release info from GitHub. Please check for updates manually. The repo might have been renamed/deleted."
-        end
-
-        latest_version = commits.first["tag_name"]
-
-        if latest_version.match?(/\d+\.\d+\.\d+/)
-            if Gem::Version.new(latest_version) > Gem::Version.new(version)
-                puts "\nSuggestion: A new version (#{latest_version}) is available. Your current version is #{version}. You can download the latest version from https://github.com/chauduyphanvu/reddit-markdown."
-            end
-        else
-            puts "\nWarning: Found invalid version number in latest GitHub commit. Please check for updates manually at https://github.com/chauduyphanvu/reddit-markdown."
-        end
-    rescue
-        puts "❌Error: Could not check for updates. Feel free to do that manually at https://github.com/chauduyphanvu/reddit-markdown."
+    if commits.empty?
+        puts "Warning: Unable to fetch latest release info from GitHub. Please check for updates manually. The repo might have been renamed/deleted."
+        return
     end
+
+    latest_version = commits.first["tag_name"]
+
+    if latest_version.match?(/\d+\.\d+\.\d+/)
+        if Gem::Version.new(latest_version) > Gem::Version.new(current_version)
+            puts "\nSuggestion: A new version (#{latest_version}) is available. Your current version is #{current_version}. You can download the latest version from https://github.com/chauduyphanvu/reddit-markdown."
+        end
+    else
+        puts "\nWarning: Found invalid version number in latest GitHub commit. Please check for updates manually at https://github.com/chauduyphanvu/reddit-markdown."
+    end
+rescue
+    puts "❌Error: Could not check for updates. Feel free to do that manually at https://github.com/chauduyphanvu/reddit-markdown."
 end
+
+check_for_updates(version) if update_check_on_startup
 
 # Supported colors to differentiate between replies of different depths.
 colors = %w[🟩 🟨 🟧 🟦 🟪 🟥 🟫 ⬛️ ⬜️]
@@ -79,12 +80,12 @@ puts "\n"
 # https://www.reddit.com/r/pcmasterrace/comments/101kjyq/my_dad_has_been_playing_civilization_almost_daily/
 puts "✏️Enter the link to the Reddit post that you want to save. Separate multiple links with commas."
 puts "✏️Want a demo? Enter \"demo\"! Want a surprise? Enter \"surprise\"!"
-puts "✏️That's not enough? Enter \"snapshot\" to save what's on r/popular right now!"
-urls = gets.chomp
+puts "✏️That's not enough? Enter \"r/[SUBREDDIT_NAME]\" (e.g. r/pcmasterrace) to save all currently trending posts from that subreddit!"
+input = gets.chomp
 
-while urls == nil || urls == ""
-    puts "❌Error: No links provided. Try again."
-    urls = gets.chomp
+while input == nil || input == ""
+    puts "❌Error: No input provided. Try again."
+    input = gets.chomp
 
     puts "\n"
 end
@@ -94,30 +95,31 @@ puts "\n"
 # To avoid having to enter the save location every time, you can set the DEFAULT_REDDIT_SAVE_LOCATION environment variable.
 # For it to take effect, the env var must be set once BEFORE running the script, and
 # the default_save_location value in settings.json must be set to "DEFAULT_REDDIT_SAVE_LOCATION".
-if directory == "DEFAULT_REDDIT_SAVE_LOCATION"
-    directory = ENV["DEFAULT_REDDIT_SAVE_LOCATION"]
+def resolve_save_directory(settings_directory)
+    if settings_directory == "DEFAULT_REDDIT_SAVE_LOCATION"
+        directory = ENV["DEFAULT_REDDIT_SAVE_LOCATION"]
 
-    if directory == nil || directory == ""
-        puts "❌Error: DEFAULT_REDDIT_SAVE_LOCATION environment variable not set. You must set it to a valid path before running the script.
-        If you'd rather be prompted for the save location every time, set the default_save_location value in settings.json to \"\"."
-        abort "Exiting..."
+        if directory.nil? || directory.empty?
+            abort "❌Error: DEFAULT_REDDIT_SAVE_LOCATION environment variable not set. You must set it to a valid path before running the script.
+                    If you'd rather be prompted for the save location every time, set the default_save_location value in settings.json to \"\". Exiting..."
+        end
+    else
+        puts "=> Enter a full path to save the post(s) to. Hit Enter/Return for current directory, which is #{Dir.pwd}."
+        directory = gets.chomp.strip
+        directory = Dir.pwd if directory.empty?
+
+        until File.directory?(directory)
+            puts "❌Error: Invalid path. Try again."
+            directory = gets.chomp.strip
+
+            puts "\n"
+        end
     end
-else
-    puts "=> Enter a full path to save the post(s) to. Hit Enter/Return for current directory, which is #{Dir.pwd}."
-    directory = gets.chomp
-    directory = directory.strip
 
-    if directory == ""
-        directory = Dir.pwd
-    end
-
-    until File.directory?(directory)
-        puts "❌Error: Invalid path. Try again."
-        directory = gets.chomp
-
-        puts "\n"
-    end
+    directory
 end
+
+directory = resolve_save_directory(directory)
 
 # By appending ".json" to the end of a Reddit post URL, we can get the JSON payload for the post.
 # This way we don't have to actually tap into the Reddit API. No authentication is required.
@@ -125,14 +127,27 @@ end
 # Note that this payload does not necessarily include all the replies. See get_replies() for more info below.
 # A non-empty user agent is required so that we aren't rate limited (a sample one is provided below).
 def download_post_json(url)
-    URI.open(
-      url + ".json",
-      "User-Agent" => "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36",
-      :read_timeout => 5
-    ) {
-      |f| json = JSON.parse(f.read)
-        json
-    }
+    begin
+        URI.open(
+          url + ".json",
+          "User-Agent" => "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36",
+          :read_timeout => 5
+        ) do |f|
+            JSON.parse(f.read)
+        end
+    rescue Errno::ENOENT, URI::InvalidURIError
+        puts "❌Error: Invalid URL: #{url}"
+        nil
+    rescue OpenURI::HTTPError => e
+        puts "❌Error: Failed to download JSON data for #{url}. HTTP Error: #{e.message}"
+        nil
+    rescue JSON::ParserError
+        puts "❌Error: Failed to parse JSON data for #{url}."
+        nil
+    rescue StandardError => e
+        puts "❌Error: Unexpected error occurred while downloading JSON data for #{url}. Error: #{e.message}"
+        nil
+    end
 end
 
 # Get all the child replies to a parent (top-level) reply.
@@ -238,39 +253,63 @@ def apply_filter(author, text, upvotes, filtered_keywords = [], filtered_authors
     text
 end
 
-if urls == "demo"
-    puts "🔃Demo mode enabled. Using demo link...\n\n"
-    urls = "https://www.reddit.com/r/pcmasterrace/comments/101kjyq/my_dad_has_been_playing_civilization_almost_daily/"
-end
-
-if urls == "surprise"
-    puts "🔃Surprise mode enabled. Saving a random post from r/popular...\n\n"
-
-    begin
-        json = download_post_json("https://www.reddit.com/r/popular")
-    rescue OpenURI::HTTPError => e
-        abort "❌Error downloading r/popular JSON payload: #{e.message}. Exiting..."
+class Downloader
+    def initialize
     end
 
-    urls = "https://www.reddit.com" + json['data']['children'].sample['data']['permalink']
-end
-
-if urls == "snapshot"
-    puts "🔃Snapshot mode enabled. Saving all current posts from r/popular...\n\n"
-
-    begin
-        json = download_post_json("https://www.reddit.com/r/popular")
-    rescue OpenURI::HTTPError => e
-        abort "❌Error downloading r/popular JSON payload: #{e.message}. Exiting..."
+    def fetch_posts(input)
+        case input
+        when "demo"
+            demo_mode
+        when "surprise"
+            surprise_mode
+        when /^r\//
+            subreddit_mode(input)
+        else
+            # Assume it's a URL
+            [input]
+        end
     end
 
-    urls = ""
-    json['data']['children'].each do |post|
-        urls += "https://www.reddit.com" + post['data']['permalink'] + ","
+    private
+
+    def demo_mode
+        puts "🔃Demo mode enabled. Using demo link...\n\n"
+        ["https://www.reddit.com/r/pcmasterrace/comments/101kjyq/my_dad_has_been_playing_civilization_almost_daily/"]
+    end
+
+    def surprise_mode
+        puts "🔃Surprise mode enabled. Saving a random post from r/popular...\n\n"
+        get_post_urls_by_subreddit("r/popular")
+    end
+
+    def subreddit_mode(subreddit)
+        puts "🔃Subreddit mode for r/#{subreddit} enabled. Saving all current best posts from r/#{subreddit}...\n\n"
+        get_post_urls_by_subreddit(subreddit, mode: :best)
+    end
+
+    def get_post_urls_by_subreddit(subreddit, mode: :random)
+        base_url = "https://www.reddit.com"
+        url = "#{base_url}/#{subreddit}"
+        url += "/best" if mode == :best
+
+        begin
+            json = download_post_json(url)
+        rescue OpenURI::HTTPError => e
+            abort "❌Error downloading r/#{subreddit} JSON payload: #{e.message}. Exiting..."
+        end
+
+        post_urls = json['data']['children'].map { |post| base_url + post['data']['permalink'] }
+
+        return [post_urls.sample] if mode == :random
+
+        post_urls
     end
 end
 
-urls = urls.split(/, |,/)
+downloader = Downloader.new
+
+urls = downloader.fetch_posts(input)
 urls.each_with_index do |url, index|
     url = url.strip
 
@@ -519,5 +558,7 @@ urls.each_with_index do |url, index|
     puts "\n---\n"
 end
 
-puts "Thanks for using this script!\n"
-puts "Something's not working as expected? Have a feature you'd like to see added? Let me know by opening an issue on GitHub at https://github.com/chauduyphanvu/reddit-markdown/issues."
+puts <<EOF
+Thanks for using this script!
+Something's not working as expected? Have a feature you'd like to see added? Let me know by opening an issue on GitHub at https://github.com/chauduyphanvu/reddit-markdown/issues.
+EOF
