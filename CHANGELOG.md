@@ -1,3 +1,15 @@
+## 1.5.0 (Apr 19, 2023)
+### New
+* **Download trending posts from a subreddit**
+    * Type `r/<subreddit_name>`, e.g. `r/AskReddit` when prompted.
+    * `snapshot` mode has been superseded by this feature.
+### Improvements
+* **Improve error handling during download**
+* **Rewrite input mode selection logic for better code separation**
+* **Rewrite update checking logic for conciseness**
+### Bug Fixes
+* N/A
+
 ## 1.4.0 (Apr 08, 2023)
 ### New
 * **Add support for saving posts as HTML files**
