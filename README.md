@@ -19,10 +19,13 @@ This Ruby script saves Reddit posts into local Markdown files for easy reading, 
         * `ruby /path/to/reddit-markdown.rb`
     * Tip: You can rename the script to anything and place it anywhere you want
 5. **Enter the link(s) to the Reddit post(s) you want to save**
-	* Don't have a link handy? Type `demo` to see how this script works! 
-	* Want a surprise? Type `surprise` to save a random post from r/popular!
-	* Feeling adventurous? Type `r/<subreddit_name>`, e.g. `r/AskReddit`, to save all trending posts from that subreddit at the moment!
+	* If you have multiple links, separate them by commas.
+	* If you need a demo, enter `demo`.
+	* If you want a surprise, enter `surprise`.
+	* If you want to save currently trending posts in a subreddit, enter `r/[SUBREDDIT_NAME]`, e.g. `r/pcmasterrace`.
 		* Note: This feature is only available in v1.5.0 and above.
+	* If you have a multireddit (i.e. collection of multiple subreddits) defined in `settings.json`, enter its name, e.g. `m/stocks`.
+		* Note: This feature is only available in v1.6.0 and above.
 6. **Enter the path where you want to save the Markdown file(s)**.
 	* Leave blank to save in the same folder (where you called the script from)
 	* Starting from v1.4.0, posts can also be saved as HTML files. To do so, get the updated `settings.json` file from that release, and use the `file_format` option. Accepted values are `html` and `md`.

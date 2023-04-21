@@ -1,5 +1,5 @@
 {
-    "version": "1.5.0",
+    "version": "1.6.0",
     "file_format": "md",
     "update_check_on_startup": true,
     "show_upvotes": true,
@@ -16,5 +16,45 @@
         "authors": [],
         "regexes": []
     },
-    "default_save_location": "DEFAULT_REDDIT_SAVE_LOCATION"
+    "default_save_location": "DEFAULT_REDDIT_SAVE_LOCATION",
+    "multi_reddits": {
+        "m/stocks": [
+            "r/wallstreetbets",
+            "r/stocks",
+            "r/investing",
+            "r/options",
+            "r/daytrading",
+            "r/pennystocks",
+            "r/RobinHoodPennyStocks",
+            "r/StockMarket",
+            "r/StocksAndTrading"
+        ],
+        "m/travel": [
+            "r/travel",
+            "r/travelphotography",
+            "r/solotravel",
+            "r/IWantOut",
+            "r/roadtrip",
+            "r/Shoestring",
+            "r/digitalnomad",
+            "r/EarthPorn"
+        ],
+        "m/programming": [
+            "r/programming",
+            "r/learnprogramming",
+            "r/ProgrammerHumor",
+            "r/ProgrammerDadJokes",
+            "r/programminghorror",
+            "r/javascript"
+        ],
+        "m/news": [
+            "r/news",
+            "r/worldnews",
+            "r/politics",
+            "r/technews",
+            "r/science",
+            "r/gamernews",
+            "r/hackernews"
+        ]
+    }
 }

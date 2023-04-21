@@ -1,3 +1,13 @@
+## 1.6.0 (Apr 20, 2023)
+### New
+* **Download trending posts from a multireddit**
+    * Define your own multireddit in `settings.json` or use one of the default ones for a quick start.
+    * Type `m/<multireddit_name>`, e.g. `m/stocks` when prompted.
+### Improvements
+* N/A
+### Bug Fixes
+* N/A
+
 ## 1.5.0 (Apr 19, 2023)
 ### New
 * **Download trending posts from a subreddit**

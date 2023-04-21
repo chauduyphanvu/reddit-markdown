@@ -78,9 +78,13 @@ puts "\n"
 # Example of a "clean" Reddit link
 # This script also supports links that have other query parameters appended (that happens when you use the "Share" button to get the link)
 # https://www.reddit.com/r/pcmasterrace/comments/101kjyq/my_dad_has_been_playing_civilization_almost_daily/
-puts "✏️Enter the link to the Reddit post that you want to save. Separate multiple links with commas."
-puts "✏️Want a demo? Enter \"demo\"! Want a surprise? Enter \"surprise\"!"
-puts "✏️That's not enough? Enter \"r/[SUBREDDIT_NAME]\" (e.g. r/pcmasterrace) to save all currently trending posts from that subreddit!"
+puts <<OPTIONS
+✏️ If you have a link to the Reddit post you want to save, enter/paste it below. Separate multiple links with commas.
+✏️ If you need a demo, enter "demo".
+✏️ If you want a surprise, enter "surprise".
+✏️ If you want to save currently trending posts in a subreddit, enter "r/[SUBREDDIT_NAME]", e.g. "r/pcmasterrace". 
+✏️ If you have a multireddit (i.e. collection of multiple subreddits) defined in `settings.json`, enter its name, e.g. "m/stocks".
+OPTIONS
 input = gets.chomp
 
 while input == nil || input == ""
@@ -254,7 +258,9 @@ def apply_filter(author, text, upvotes, filtered_keywords = [], filtered_authors
 end
 
 class Downloader
-    def initialize
+    def initialize(settings)
+        @settings = settings
+        @multi_reddit = @settings["multi_reddits"]
     end
 
     def fetch_posts(input)
@@ -265,6 +271,8 @@ class Downloader
             surprise_mode
         when /^r\//
             subreddit_mode(input)
+        when /^m\//
+            multireddit_mode(input)
         else
             # Assume it's a URL
             [input]
@@ -288,6 +296,27 @@ class Downloader
         get_post_urls_by_subreddit(subreddit, mode: :best)
     end
 
+    def multireddit_mode(name)
+        puts "🔃Multireddit mode for #{name} enabled. Saving all current best posts from #{name}...\n\n"
+        get_post_urls_from_multireddit(name, @multi_reddit)
+    end
+
+    def get_post_urls_from_multireddit(name, multi_reddit)
+        subreddits = multi_reddit[name]
+
+        if subreddits.nil?
+            puts "❌Error: Multireddit '#{name}' not found in settings.json. Exiting..."
+            return []
+        end
+
+        puts "🔃Multireddit mode for #{name} enabled. Saving best posts from pre-defined subreddits for #{name}...\n\n"
+
+        subreddits.flat_map do |subreddit|
+            puts "⏳Fetching best posts from #{subreddit}..."
+            get_post_urls_by_subreddit("#{subreddit}", mode: :best)
+        end
+    end
+
     def get_post_urls_by_subreddit(subreddit, mode: :random)
         base_url = "https://www.reddit.com"
         url = "#{base_url}/#{subreddit}"
@@ -307,7 +336,7 @@ class Downloader
     end
 end
 
-downloader = Downloader.new
+downloader = Downloader.new(settings)
 
 urls = downloader.fetch_posts(input)
 urls.each_with_index do |url, index|
