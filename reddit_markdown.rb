@@ -142,35 +142,6 @@ end
 
 directory = resolve_save_directory(directory)
 
-# By appending ".json" to the end of a Reddit post URL, we can get the JSON payload for the post.
-# This way we don't have to actually tap into the Reddit API. No authentication is required.
-#
-# Note that this payload does not necessarily include all the replies. See get_replies() for more info below.
-# A non-empty user agent is required so that we aren't rate limited (a sample one is provided below).
-def download_post_json(url)
-    begin
-        URI.open(
-          url + ".json",
-          "User-Agent" => "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36",
-          :read_timeout => 5
-        ) do |f|
-            JSON.parse(f.read)
-        end
-    rescue Errno::ENOENT, URI::InvalidURIError
-        puts "❌Error: Invalid URL: #{url}"
-        nil
-    rescue OpenURI::HTTPError => e
-        puts "❌Error: Failed to download JSON data for #{url}. HTTP Error: #{e.message}"
-        nil
-    rescue JSON::ParserError
-        puts "❌Error: Failed to parse JSON data for #{url}."
-        nil
-    rescue StandardError => e
-        puts "❌Error: Unexpected error occurred while downloading JSON data for #{url}. Error: #{e.message}"
-        nil
-    end
-end
-
 # Get all the child replies to a parent (top-level) reply.
 #
 # @param [Object] reply The parent reply.
@@ -317,6 +288,35 @@ class UrlFetcher
         end
     end
 
+    # By appending ".json" to the end of a Reddit post URL, we can get the JSON payload for the post.
+    # This way we don't have to actually tap into the Reddit API. No authentication is required.
+    #
+    # Note that this payload does not necessarily include all the replies. See get_replies() for more info below.
+    # A non-empty user agent is required so that we aren't rate limited (a sample one is provided below).
+    def self.download_post_json(url)
+        begin
+            URI.open(
+              url + ".json",
+              "User-Agent" => "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36",
+              :read_timeout => 5
+            ) do |f|
+                JSON.parse(f.read)
+            end
+        rescue Errno::ENOENT, URI::InvalidURIError
+            puts "❌Error: Invalid URL: #{url}"
+            nil
+        rescue OpenURI::HTTPError => e
+            puts "❌Error: Failed to download JSON data for #{url}. HTTP Error: #{e.message}"
+            nil
+        rescue JSON::ParserError
+            puts "❌Error: Failed to parse JSON data for #{url}."
+            nil
+        rescue StandardError => e
+            puts "❌Error: Unexpected error occurred while downloading JSON data for #{url}. Error: #{e.message}"
+            nil
+        end
+    end
+
     def demo_mode
         puts '🔃Demo mode enabled. Using demo link...'
         ['https://www.reddit.com/r/pcmasterrace/comments/101kjyq/my_dad_has_been_playing_civilization_almost_daily/']
@@ -371,7 +371,7 @@ class UrlFetcher
         url += "/best" if mode == :best
 
         begin
-            json = download_post_json(url)
+            json = UrlFetcher.download_post_json(url)
         rescue OpenURI::HTTPError => e
             abort "❌Error downloading r/#{subreddit} JSON payload: #{e.message}. Exiting..."
         end
@@ -381,12 +381,6 @@ class UrlFetcher
         return [post_urls.sample] if mode == :random
 
         post_urls
-    end
-
-    def download_post_json(url)
-        open("#{url}.json") do |f|
-            JSON.parse(f.read)
-        end
     end
 end
 
@@ -437,7 +431,7 @@ urls.each_with_index do |url, index|
 
     # The entire JSON payload
     begin
-        json = download_post_json(url)
+        json = UrlFetcher.download_post_json(url)
     rescue OpenURI::HTTPError => e
         puts "❌Error downloading post JSON payload: #{e.message}. Skipping..."
         next
