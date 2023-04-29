@@ -3,8 +3,9 @@ require 'json'
 require 'open-uri'
 require 'uri'
 require 'kramdown'
-
-puts "ℹ️This script saves the content (body and replies) of a Reddit post to a Markdown file for easy reading, sharing, and archiving."
+require 'optparse'
+require 'csv'
+require_relative '' 'command_line_args'
 
 unless File.exist?("settings.json")
     abort "❌Error: settings.json not found. Please get a copy of it from https://github.com/chauduyphanvu/reddit-markdown/releases. Exiting..."
@@ -28,6 +29,7 @@ show_auto_mod_comment = settings['show_auto_mod_comment']
 line_break_enabled = settings['line_break_between_parent_replies']
 show_upvotes_enabled = settings['show_upvotes']
 reply_depth_color_indicators_enabled = settings['reply_depth_color_indicators']
+reply_depth_max = settings['reply_depth_max']
 overwrite_existing_file_enabled = settings['overwrite_existing_file']
 save_posts_by_subreddits = settings['save_posts_by_subreddits']
 show_timestamp = settings['show_timestamp']
@@ -78,20 +80,35 @@ puts "\n"
 # Example of a "clean" Reddit link
 # This script also supports links that have other query parameters appended (that happens when you use the "Share" button to get the link)
 # https://www.reddit.com/r/pcmasterrace/comments/101kjyq/my_dad_has_been_playing_civilization_almost_daily/
-puts <<OPTIONS
+
+args = CommandLineArgs.new
+
+args_urls = args.urls
+args_src_files = args.src_files
+args_subs = args.subs
+args_multis = args.multis
+
+input = nil
+
+# Only prompt for input if no URLs, source files, subreddits, or multireddits are provided as command line arguments.
+# Note: With the support for input via command line argument(s), this prompt is still functional but will be deprecated in the future.
+if args.urls.empty? && args.src_files.empty? && args.subs.empty? && args.multis.empty?
+    puts <<OPTIONS
 ✏️ If you have a link to the Reddit post you want to save, enter/paste it below. Separate multiple links with commas.
 ✏️ If you need a demo, enter "demo".
 ✏️ If you want a surprise, enter "surprise".
 ✏️ If you want to save currently trending posts in a subreddit, enter "r/[SUBREDDIT_NAME]", e.g. "r/pcmasterrace". 
 ✏️ If you have a multireddit (i.e. collection of multiple subreddits) defined in `settings.json`, enter its name, e.g. "m/stocks".
 OPTIONS
-input = gets.chomp
 
-while input == nil || input == ""
-    puts "❌Error: No input provided. Try again."
     input = gets.chomp
 
-    puts "\n"
+    while input == nil || input == ""
+        puts "❌Error: No input provided. Try again."
+        input = gets.chomp
+
+        puts "\n"
+    end
 end
 
 puts "\n"
@@ -157,9 +174,10 @@ end
 # Get all the child replies to a parent (top-level) reply.
 #
 # @param [Object] reply The parent reply.
+# @param [Integer] max_depth The maximum depth of replies to fetch (-1 for unlimited, 0 for only top-level replies, etc.).
 #
 # @return [Hash] A hash of child replies.
-def get_replies(reply)
+def get_replies(reply, max_depth)
     child_replies = {}
 
     replies_data = reply['data']['replies']
@@ -169,6 +187,9 @@ def get_replies(reply)
         child_reply_id = child_reply['data']['id']
         child_reply_depth = child_reply['data']['depth']
         child_reply_body = child_reply['data']['body']
+
+        # Stop fetching replies if we reached the maximum allowed depth, unless max_depth is -1 (unlimited depth)
+        next if max_depth != -1 && child_reply_depth > max_depth
 
         # On the web, Reddit hides a subset of replies that you'd have to manually click to see.
         # Those replies typically have very low upvotes and are usually just spam.
@@ -180,7 +201,7 @@ def get_replies(reply)
           'child_reply' => child_reply
         }
 
-        child_replies.merge!(get_replies(child_reply))
+        child_replies.merge!(get_replies(child_reply, max_depth))
     end
 
     child_replies
@@ -257,68 +278,95 @@ def apply_filter(author, text, upvotes, filtered_keywords = [], filtered_authors
     text
 end
 
-class Downloader
-    def initialize(settings)
+class UrlFetcher
+    def initialize(settings, args_urls, args_src_files, args_subs, args_multis, input)
         @settings = settings
-        @multi_reddit = @settings["multi_reddits"]
+        @multi_reddit = @settings['multi_reddits']
+        @input = input
+        @urls = args_to_urls(args_urls, args_src_files, args_subs, args_multis)
+        @urls = input_to_urls(@input) if @urls.empty?
     end
 
-    def fetch_posts(input)
+    def urls
+        @urls
+    end
+
+    private
+
+    def args_to_urls(urls, src_files, subs, multis)
+        urls_from_args = []
+        urls_from_args.concat(urls)
+                      .concat(parse_urls_from_files(src_files))
+                      .concat(fetch_subreddit_posts(subs, :best))
+                      .concat(fetch_multireddit_posts(multis))
+        urls_from_args
+    end
+
+    def input_to_urls(input)
         case input
-        when "demo"
+        when 'demo'
             demo_mode
-        when "surprise"
+        when 'surprise'
             surprise_mode
         when /^r\//
             subreddit_mode(input)
         when /^m\//
             multireddit_mode(input)
         else
-            # Assume it's a URL
             [input]
         end
     end
 
-    private
-
     def demo_mode
-        puts "🔃Demo mode enabled. Using demo link...\n\n"
-        ["https://www.reddit.com/r/pcmasterrace/comments/101kjyq/my_dad_has_been_playing_civilization_almost_daily/"]
+        puts '🔃Demo mode enabled. Using demo link...'
+        ['https://www.reddit.com/r/pcmasterrace/comments/101kjyq/my_dad_has_been_playing_civilization_almost_daily/']
     end
 
     def surprise_mode
-        puts "🔃Surprise mode enabled. Saving a random post from r/popular...\n\n"
-        get_post_urls_by_subreddit("r/popular")
+        puts '🔃Surprise mode enabled. Saving a random post from r/popular...'
+        get_post_urls_by_subreddit('r/popular')
     end
 
     def subreddit_mode(subreddit)
-        puts "🔃Subreddit mode for r/#{subreddit} enabled. Saving all current best posts from r/#{subreddit}...\n\n"
+        puts "🔃Subreddit mode for r/#{subreddit} enabled. Saving all current best posts from r/#{subreddit}..."
         get_post_urls_by_subreddit(subreddit, mode: :best)
     end
 
-    def multireddit_mode(name)
-        puts "🔃Multireddit mode for #{name} enabled. Saving all current best posts from #{name}...\n\n"
-        get_post_urls_from_multireddit(name, @multi_reddit)
+    def multireddit_mode(multi_name)
+        puts "🔃Multireddit mode for #{multi_name} enabled. Saving all current best posts from #{multi_name}..."
+        fetch_multireddit_posts([multi_name])
     end
 
-    def get_post_urls_from_multireddit(name, multi_reddit)
-        subreddits = multi_reddit[name]
+    def parse_urls_from_files(file_paths)
+        file_paths.flat_map do |file_path|
+            begin
+                CSV.read(file_path).flatten.reject(&:empty?).map(&:strip)
+            rescue Errno::ENOENT
+                puts "Error: Could not find the file '#{file_path}'. Check the file path and try again."
+            rescue CSV::MalformedCSVError => e
+                puts "Error: Malformed CSV file '#{file_path}'. Fix the issue and try again. Details: #{e.message}"
+            end
+        end.compact
+    end
 
-        if subreddits.nil?
-            puts "❌Error: Multireddit '#{name}' not found in settings.json. Exiting..."
-            return []
-        end
-
-        puts "🔃Multireddit mode for #{name} enabled. Saving best posts from pre-defined subreddits for #{name}...\n\n"
-
+    def fetch_subreddit_posts(subreddits, mode = :random)
         subreddits.flat_map do |subreddit|
-            puts "⏳Fetching best posts from #{subreddit}..."
-            get_post_urls_by_subreddit("#{subreddit}", mode: :best)
+            get_post_urls_by_subreddit(subreddit, mode: mode)
+        end
+    end
+
+    def fetch_multireddit_posts(multi_names)
+        multi_names.flat_map do |multi_name|
+            subreddits = @multi_reddit[multi_name]
+            next [] if subreddits.nil?
+
+            puts "🔃Multireddit mode for #{multi_name} enabled. Saving best posts from pre-defined subreddits for #{multi_name}..."
+            fetch_subreddit_posts(subreddits, :best)
         end
     end
 
     def get_post_urls_by_subreddit(subreddit, mode: :random)
-        base_url = "https://www.reddit.com"
+        base_url = 'https://www.reddit.com'
         url = "#{base_url}/#{subreddit}"
         url += "/best" if mode == :best
 
@@ -334,35 +382,56 @@ class Downloader
 
         post_urls
     end
+
+    def download_post_json(url)
+        open("#{url}.json") do |f|
+            JSON.parse(f.read)
+        end
+    end
 end
 
-downloader = Downloader.new(settings)
+url_fetcher = UrlFetcher.new(settings, args_urls, args_src_files, args_subs, args_multis, input)
+urls = url_fetcher.urls
 
-urls = downloader.fetch_posts(input)
+def clean_url(url)
+    url.strip.split("?utm_source").first
+end
+
+def valid_url?(url)
+    url.match(/https:\/\/www.reddit.com\/r\/\w+\/comments\/\w+\/\w+\/?/)
+end
+
+def process_post_info(post_info)
+    data = post_info[0]['data']
+
+    {
+      op: data['author'],
+      subreddit: data['subreddit_name_prefixed'],
+      post_timestamp_utc: data['created_utc'],
+      post_upvotes: data['ups'],
+      post_is_locked: data['locked']
+    }
+end
+
+def format_upvotes(upvotes)
+    upvotes >= 1000 ? "#{upvotes / 1000}k" : upvotes if upvotes
+end
+
+def format_post_timestamp(post_timestamp_utc)
+    Time.at(post_timestamp_utc).strftime("%Y-%m-%d %H:%M:%S") if post_timestamp_utc
+end
+
 urls.each_with_index do |url, index|
-    url = url.strip
+    url = clean_url(url)
 
     # This is a trivial check to make sure the URL is somewhat valid. It is not meant to be foolproof.
-    unless url.match(/https:\/\/www.reddit.com\/r\/\w+\/comments\/\w+\/\w+\/?/)
+    unless valid_url?(url)
         puts "❌Error: Invalid post URL: \"#{url}\". Skipping..."
         next
     end
 
     puts "🔃Processing post #{index + 1} of #{urls.length}..."
     puts "#{url}"
-
-    # URLs that are shared from Reddit may have query parameters appended.
-    # Drop them to get a clean URL.
-    if url.include? "?utm_source"
-        url = url.split("?utm_source").first
-    end
-
-    # In case we've dropped too much. This shouldn't happen.
-    if url == nil || url == ""
-        puts "❌Error: Post URL is empty. Skipping..."
-        next
-    end
-
     puts "\n"
     puts "🔃Downloading post data..."
 
@@ -374,7 +443,7 @@ urls.each_with_index do |url, index|
         next
     end
 
-    if json == nil || json == ""
+    if json.nil? || json.empty?
         puts "❌Error: JSON payload for #{url} is empty. Skipping..."
         next
     end
@@ -384,29 +453,25 @@ urls.each_with_index do |url, index|
 
     # The replies
     response = json[1]['data']['children']
+    post_data = process_post_info(post_info)
 
     replies_count[url] = response.length + response.map { |reply|
         # TODO: Build a hash of parent reply to child replies ONCE right here for subsequent use.
         if reply['data']['replies'] != "" && reply['data']['replies'] != nil
-            get_replies(reply).length
+            get_replies(reply, reply_depth_max).length
         else
             0
         end
     }.sum
 
-    op = post_info[0]['data']['author']
-    subreddit = post_info[0]['data']['subreddit_name_prefixed']
-    post_timestamp_utc = post_info[0]['data']['created_utc']
-    post_timestamp = post_timestamp_utc ? Time.at(post_timestamp_utc).strftime("%Y-%m-%d %H:%M:%S") : ""
+    op = post_data[:op]
+    subreddit = post_data[:subreddit]
+    post_timestamp_utc = post_data[:post_timestamp_utc]
+    post_upvotes = post_data[:post_upvotes]
+    post_is_locked = post_data[:post_is_locked]
+    post_upvotes_field = format_upvotes(post_upvotes)
+    post_timestamp = format_post_timestamp(post_timestamp_utc)
 
-    post_upvotes = post_info[0]['data']['ups']
-    post_upvotes_field = if post_upvotes
-                             post_upvotes >= 1000 ? "#{post_upvotes / 1000}k" : post_upvotes
-                         else
-                             ""
-                         end
-
-    post_is_locked = post_info[0]['data']['locked']
     lock_message = post_is_locked ? "---\n\n>🔒 **This thread has been locked by the moderators of #{subreddit}**.\n  New comments cannot be posted" : ""
 
     content = "**#{subreddit}** | Posted by u/#{op} #{show_upvotes_enabled ? "⬆️ #{post_upvotes_field}" : ""} #{show_timestamp ? "_(#{post_timestamp})_" : ""}\n\n"
@@ -509,7 +574,7 @@ urls.each_with_index do |url, index|
 
         content += "\t#{reply_formatted}\n\n"
 
-        child_replies = get_replies(reply)
+        child_replies = get_replies(reply, reply_depth_max)
 
         child_replies.each do |_, child_reply|
             content += "\t" * child_reply['depth']

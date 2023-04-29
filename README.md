@@ -1,7 +1,7 @@
 # reddit-markdown
 
 ## Introduction
-This Ruby script saves Reddit posts into local Markdown files for easy reading, sharing, and archiving. Both post body and replies are supported.
+This Ruby script saves Reddit posts into local Markdown files for easy reading, sharing, and archiving. Both post body and replies are supported. You can then use any Markdown reader or knowledge management software to manage the saved posts.
 
 <div>
 	<img src="https://chauduyphanvu.s3.us-east-2.amazonaws.com/screenshots/Reddit_Markdown_Raw.png" width="49%" />
@@ -17,6 +17,7 @@ This Ruby script saves Reddit posts into local Markdown files for easy reading, 
     * `ruby reddit-markdown.rb`
     * If you call the script from a different folder, you need to specify the path to the script
         * `ruby /path/to/reddit-markdown.rb`
+	* Tip: Starting with the 1.7.0 release, command-line arguments are supported. See [Command-line Arguments](#command-line-arguments) for details. If you use that option, you can skip the next step.
     * Tip: You can rename the script to anything and place it anywhere you want
 5. **Enter the link(s) to the Reddit post(s) you want to save**
 	* If you have multiple links, separate them by commas.
@@ -31,6 +32,21 @@ This Ruby script saves Reddit posts into local Markdown files for easy reading, 
 	* Starting from v1.4.0, posts can also be saved as HTML files. To do so, get the updated `settings.json` file from that release, and use the `file_format` option. Accepted values are `html` and `md`.
 	* Tip: Starting with the 1.1.0 release, you can set a default path in the `settings.json` file. See [Custom Settings](#custom-settings) for details.
 
+## Command-line Arguments
+Starting with the 1.7.0 release, command-line arguments are supported to facilitate automation and integration with other programs. This is in addition to the existing interactive mode. You can pass input to the script via either method (to use the interactive mode, simply do not pass any command-line arguments). However, in the future, the interactive mode is scheduled to be removed, so it is recommended to adopt command-line arguments as soon as possible.
+
+The following arguments are available:
+
+| Argument | Description | Example |
+| --- | --- | --- |
+| `--urls` | One or more comma-separated Reddit post URLs | `--urls https://www.reddit.com/r/corgi/comments/abc123,https://www.reddit.com/r/askreddit/comments/def456` |
+| `--src-files` | One or more directory paths pointing to files containing comma-separated URLs | `--src-files path/to/urls.csv,path/to/urls.txt` |
+| `--subs` | One or more comma-separated subreddit names | `--subs r/corgi,r/askreddit` |
+| `--multis` | One or more comma-separated multireddit names | `--multis m/travel,m/programming` |
+| `-h` or `--help` | Display help information | `--help` |
+
+**Tip**: _You can use multiple options at once! For example, you can pass in a list of URLs, a list of subreddits, and a list of multireddits, and the script will save all of them._
+
 ## Custom Settings
 Starting with the 1.1.0 release, a number of settings can be customized. They can be found in the `settings.json` file bundled with the script. 
 
@@ -44,6 +60,7 @@ If you are using an older release, make sure to get the latest version of the sc
 | "file_format" | The file format for saved Reddit posts | `md` or `html` |
 | "update_check_on_startup" | Whether to check for updates on startup | true/false |
 | "show_upvotes" | Whether to render the number of upvotes | true/false |
+| "reply_depth_max" | The maximum depth of replies to save. If set to -1, all replies will be saved. If set to 0, only top-level replies will be saved, so on and so forth. | Integer |
 | "reply_depth_color_indicators" | Whether to render color indicators for reply depths | true/false |
 | "line_break_between_parent_replies" | Whether to render a line break between parent replies | true/false |
 | "show_auto_mod_comment" | Whether to render AutoModerator's comment | true/false |
@@ -62,6 +79,7 @@ If you are using an older release, make sure to get the latest version of the sc
 
 ## Advantages
 * **Open source, and free**
+* **Automation-friendly**
 * **No authentication/sign-in of any kind needed**
 	* Publicly available data. Safe and no security concerns
 * **Look and feel similar to browsing Reddit on desktop web**

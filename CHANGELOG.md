@@ -1,3 +1,12 @@
+## 1.7.0 (Apr 28, 2023)
+### New
+* Add support for command-line arguments. See README for details.
+* Add support for a maximum reply depth. See README for details.
+### Improvements
+* N/A
+### Bug Fixes
+* N/A
+
 ## 1.6.0 (Apr 20, 2023)
 ### New
 * **Download trending posts from a multireddit**
