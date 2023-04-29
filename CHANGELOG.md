@@ -1,3 +1,11 @@
+## 1.7.1 (Apr 29, 2023)
+### New
+* N/A
+### Improvements
+* Consolidate the JSON download logic for reuse. Also, the previous implementation was not running well on Windows.
+### Bug Fixes
+* N/A
+
 ## 1.7.0 (Apr 28, 2023)
 ### New
 * Add support for command-line arguments. See README for details.
