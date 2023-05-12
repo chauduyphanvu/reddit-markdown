@@ -33,7 +33,9 @@ This Ruby script saves Reddit posts into local Markdown files for easy reading, 
 	* Tip: Starting with the 1.1.0 release, you can set a default path in the `settings.json` file. See [Custom Settings](#custom-settings) for details.
 
 ## Command-line Arguments
-Starting with the 1.7.0 release, command-line arguments are supported to facilitate automation and integration with other programs. This is in addition to the existing interactive mode. You can pass input to the script via either method (to use the interactive mode, simply do not pass any command-line arguments). However, in the future, the interactive mode is scheduled to be removed, so it is recommended to adopt command-line arguments as soon as possible.
+Starting with the 1.7.0 release, command-line arguments are supported to facilitate automation and integration with other programs (see [Automation](#automation) for details)
+
+This is in addition to the existing interactive mode. You can pass input to the script via either method (to use the interactive mode, simply do not pass any command-line arguments). However, in the future, the interactive mode is scheduled to be removed, so it is recommended to adopt command-line arguments as soon as possible.
 
 The following arguments are available:
 
@@ -76,6 +78,43 @@ If you are using an older release, make sure to get the latest version of the sc
 | "multi_reddits" | The list of multireddits (each is a collection of multiple subreddits) | Parent is Object. Children are Arrays of subreddit names as Strings |
 
 <sub>1. _The path string must be set as an environment variable. The key name in `settings.json` and for your environment variable must be `DEFAULT_REDDIT_SAVE_LOCATION`. See [Use environment variables in Terminal on Mac](https://support.apple.com/guide/terminal/use-environment-variables-apd382cc5fa-4f58-4449-b20a-41c53c006f8f/mac), [Create and Modify Environment Variables on Windows](https://docs.oracle.com/en/database/oracle/machine-learning/oml4r/1.5.1/oread/creating-and-modifying-environment-variables-on-windows.html#GUID-DD6F9982-60D5-48F6-8270-A27EC53807D0), or [How to Set Environment Variables in Linux](https://www.serverlab.ca/tutorials/linux/administration-linux/how-to-set-environment-variables-in-linux/) for more details._</sub>
+
+## Automation
+This section describes a potential workflow to automate the process of saving Reddit posts. It is not meant to be a comprehensive guide, but rather a starting point for you to build upon.
+
+We are going to use GitHub Actions to automate the process. If you are not familiar with GitHub Actions, please read [GitHub's guide on getting started with GitHub Actions](https://docs.github.com/en/actions/learn-github-actions/understanding-github-actions) first.
+
+Here is a sample GitHub Actions workflow which triggers the `reddit_markdown.rb` script every two hours:
+
+```yaml
+name: Fetch Reddit posts
+
+on:
+  workflow_dispatch:
+  schedule:
+     * cron: "0 */2 * * *"
+
+jobs:
+  run_ruby_script:
+    runs-on: self-hosted
+
+    steps:
+       * name: Check out repository
+        uses: actions/checkout@v3
+
+	   * name: Set up Ruby
+		uses: ruby/setup-ruby@v1
+		with:
+		  ruby-version: 2.7
+
+       * name: Run script
+        run: |
+          ruby reddit_markdown.rb --multis m/fav,m/stocks,m/programming,m/travel
+```
+
+You can customize this workflow according to your needs. For example, you can modify the `cron` schedule to adjust the frequency of the script execution, or change the command-line arguments to others (see [Command-line arguments](#command-line-arguments) for more details).
+
+The above workflow uses a self-hosted runner for convenience. To set up a self-hosted runner, please read [GitHub's guide on setting up a self-hosted runner](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners) first. If you prefer to use a GitHub-hosted runner, you might need to set up additional steps to appropriately save and retrieve the downloaded Markdown files from that runner (e.g. by uploading them to a cloud storage service such as S3 and downloading them back to your local machine if needed).
 
 ## Advantages
 * **Open source, and free**
