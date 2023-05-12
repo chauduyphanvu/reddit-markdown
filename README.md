@@ -92,24 +92,24 @@ name: Fetch Reddit posts
 on:
   workflow_dispatch:
   schedule:
-     * cron: "0 */2 * * *"
+    - cron: '0 */2 * * *'
 
 jobs:
   run_ruby_script:
     runs-on: self-hosted
 
     steps:
-       * name: Check out repository
-        uses: actions/checkout@v3
+    - name: Check out repository
+      uses: actions/checkout@v3
+	
+	- name: Set up Ruby
+	  uses: ruby/setup-ruby@v1
+	  with:
+		ruby-version: 2.7
 
-	   * name: Set up Ruby
-		uses: ruby/setup-ruby@v1
-		with:
-		  ruby-version: 2.7
-
-       * name: Run script
-        run: |
-          ruby reddit_markdown.rb --multis m/fav,m/stocks,m/programming,m/travel
+    - name: Run script
+      run: |
+        ruby reddit_markdown.rb --multis m/fav,m/stocks,m/programming,m/travel
 ```
 
 You can customize this workflow according to your needs. For example, you can modify the `cron` schedule to adjust the frequency of the script execution, or change the command-line arguments to others (see [Command-line arguments](#command-line-arguments) for more details).
