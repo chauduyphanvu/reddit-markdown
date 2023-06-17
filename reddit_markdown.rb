@@ -376,6 +376,10 @@ class UrlFetcher
             abort "❌Error downloading r/#{subreddit} JSON payload: #{e.message}. Exiting..."
         end
 
+        if json.nil?
+            return []
+        end
+
         post_urls = json['data']['children'].map { |post| base_url + post['data']['permalink'] }
 
         return [post_urls.sample] if mode == :random
@@ -416,8 +420,14 @@ def format_post_timestamp(post_timestamp_utc)
 end
 
 urls.each_with_index do |url, index|
+    # We don't even have a URL. Possibly the subreddit is private or banned, or the input is malformed.
+    if url.nil? || url.empty?
+        next
+    end
+
     url = clean_url(url)
 
+    # We have a URL, but it might be invalid.
     # This is a trivial check to make sure the URL is somewhat valid. It is not meant to be foolproof.
     unless valid_url?(url)
         puts "❌Error: Invalid post URL: \"#{url}\". Skipping..."
@@ -438,7 +448,6 @@ urls.each_with_index do |url, index|
     end
 
     if json.nil? || json.empty?
-        puts "❌Error: JSON payload for #{url} is empty. Skipping..."
         next
     end
 

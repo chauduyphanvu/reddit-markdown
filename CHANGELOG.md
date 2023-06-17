@@ -1,3 +1,12 @@
+## 1.8.0 (Jun 17, 2023)
+### New
+* N/A
+### Improvements
+* Add the Gemfile for easier dependency management
+* Gracefully fail when a subreddit is not found (e.g. it's been banned or gone private)
+### Bug Fixes
+* N/A
+
 ## 1.7.1 (Apr 29, 2023)
 ### New
 * N/A
