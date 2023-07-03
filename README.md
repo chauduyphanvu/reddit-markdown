@@ -116,6 +116,36 @@ You can customize this workflow according to your needs. For example, you can mo
 
 The above workflow uses a self-hosted runner for convenience. To set up a self-hosted runner, please read [GitHub's guide on setting up a self-hosted runner](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners) first. If you prefer to use a GitHub-hosted runner, you might need to set up additional steps to appropriately save and retrieve the downloaded Markdown files from that runner (e.g. by uploading them to a cloud storage service such as S3 and downloading them back to your local machine if needed).
 
+## Timestamped subdirectories
+
+`timestamped_subs.rb` is a Ruby script that helps organize your saved Reddit posts by moving them into timestamped subdirectories. This is particularly useful for users who have a large number of saved Reddit posts. It also makes it easier to find posts based on the time they were created.
+
+### How it works
+
+The script works by:
+
+1. Scanning a base directory for `.md` files that represent saved Reddit posts.
+2. For each file, it extracts the timestamp from the post's content.
+3. It then uses this timestamp to create a new directory (if it doesn't already exist).
+4. The script then moves the file to this new directory.
+
+The script is smart enough to ignore files that are already in a timestamped directory.
+
+### How to use
+
+You will need to set the `base_dir` variable in the script to the directory where your saved Reddit posts are located. This base directory path is relative to the directory where you run this script.
+
+Once you've done that, you can simply run the script by using the `ruby` command followed by the script name in your terminal:
+
+```bash
+ruby reddit_post_organiser.rb
+```
+
+The script will then print out log messages indicating which files it is processing, whether it's created any new directories, and whether it's moved any files.
+
+### Caution
+Make sure to back up your files before running this script to prevent any unintended data loss.
+
 ## Advantages
 * **Open source, and free**
 * **Automation-friendly**
