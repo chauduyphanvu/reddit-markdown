@@ -1,8 +1,16 @@
 require 'fileutils'
 require 'date'
 
-# This script will organize your Reddit posts into directories based on the timestamp of the post. Doing that helps you find posts by date more easily and also helps you reduce the number of files in a single directory.
-# For example, if you have a saved post with a timestamp of 2020-01-01 12:00:00, it will be moved to a directory named 2020-01-01.
+# Starting in v1.9.0, the feature to organize posts into timestamped directories is now available. By default, this feature is disabled to maintain backward compatibility.
+# To enable the feature, open the `settings.json` file and set the `use_timestamped_directories` option to `true`. The change will take effect the next time you run the script.
+#
+# Organizing posts into timestamped directories allows you to easily locate posts based on their date.
+# For instance, saved posts with a timestamp of `2020-01-01 12:00:00` will be moved to a directory named `2020-01-01`. The new path for one of those posts will be: `<base_dir>/subreddit/2020-01-01/<post>.md`
+#
+# If you have already downloaded posts prior to enabling the timestamped directories feature, you can use this script to retrospectively organize them.
+# This will enhance your browsing experience and reduce clutter in your file system.
+#
+# It's important to note that using this script is entirely optional. If you prefer to not place your posts into timestamped directories, you don't need to use it. The script is provided as a convenient tool for users who want a more organized directory structure for their saved Reddit posts.
 
 # Edit this to the base directory where you downloaded your Reddit posts.
 # Note: This base directory path is relative to the directory where you run this script.
@@ -19,10 +27,10 @@ end
 
 workers = (1..max_threads).map do
   Thread.new do
-    while (file = queue.pop(true) rescue nil)
+    while (file = queue.pop(true)) rescue nil
       puts "Processing file: #{file}"
 
-      if File.dirname(file).match?(/\d{4}-\d{2}-\d{2}/)
+      if File.dirname(file).match?(/\d{4}-\d{2}-\d{2}/) # YYYY-MM-DD
         puts "File is already in a timestamped directory: #{file}"
         next
       end
@@ -31,7 +39,7 @@ workers = (1..max_threads).map do
 
       begin
         File.foreach(file) do |line|
-          match = line.match(/\(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\)/)
+          match = line.match(/\(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\)/) # (YYYY-MM-DD HH:MM:SS)
           if match
             timestamp = match
             break
@@ -47,7 +55,7 @@ workers = (1..max_threads).map do
       else
         begin
           date = Date.parse(timestamp[0][1...-1])
-          date_string = date.strftime('%Y-%m-%d')
+          date_string = date.strftime('%Y-%m-%d') # YYYY-MM-DD
         rescue StandardError => e
           puts "Error parsing date: #{file}. Error: #{e.message}"
           next

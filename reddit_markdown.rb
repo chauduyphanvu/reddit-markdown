@@ -5,6 +5,7 @@ require 'uri'
 require 'kramdown'
 require 'optparse'
 require 'csv'
+require 'date'
 require_relative '' 'command_line_args'
 
 unless File.exist?("settings.json")
@@ -33,6 +34,7 @@ reply_depth_max = settings['reply_depth_max']
 overwrite_existing_file_enabled = settings['overwrite_existing_file']
 save_posts_by_subreddits = settings['save_posts_by_subreddits']
 show_timestamp = settings['show_timestamp']
+use_timestamped_directories = settings['use_timestamped_directories']
 
 # Only apply to replies and not actual post body.
 # When applied, reply body will be replaced by user-defined filtered_message.
@@ -178,12 +180,17 @@ def get_replies(reply, max_depth)
     child_replies
 end
 
-def get_file_base_and_ext(url, directory, save_posts_by_subreddits, subreddit, file_format)
+def get_file_base_and_ext(url, directory, save_posts_by_subreddits, subreddit, file_format, use_timestamped_directories, post_timestamp)
     file_name = url.split("/").last
     subreddit = subreddit.gsub("r/", "")
-    directory_path = save_posts_by_subreddits ? File.join(directory, subreddit) : directory
+    formatted_timestamp = DateTime.parse(post_timestamp).strftime("%Y-%m-%d")
 
-    FileUtils.mkdir_p(directory_path) if save_posts_by_subreddits && !File.directory?(directory_path)
+    if save_posts_by_subreddits
+        directory_path = use_timestamped_directories ? File.join(directory, subreddit, formatted_timestamp) : File.join(directory, subreddit)
+        FileUtils.mkdir_p(directory_path) unless File.directory?(directory_path)
+    else
+        directory_path = directory
+    end
 
     if file_name.nil? || file_name.empty?
         puts "⚠️ Could not get file name from URL. Using current timestamp as file name..."
@@ -218,8 +225,8 @@ def handle_duplicate_files(file_base, file_ext, overwrite_existing_file_enabled)
     "#{file_base}_#{duplicates}.#{file_ext}"
 end
 
-def resolve_full_path(url, directory, overwrite_existing_file_enabled, save_posts_by_subreddits, subreddit, file_format)
-    file_base, file_ext = get_file_base_and_ext(url, directory, save_posts_by_subreddits, subreddit, file_format)
+def resolve_full_path(url, directory, overwrite_existing_file_enabled, save_posts_by_subreddits, subreddit, file_format, use_timestamped_directories, post_timestamp)
+    file_base, file_ext = get_file_base_and_ext(url, directory, save_posts_by_subreddits, subreddit, file_format, use_timestamped_directories, post_timestamp)
 
     if File.exist?("#{file_base}.#{file_ext}")
         return handle_duplicate_files(file_base, file_ext, overwrite_existing_file_enabled)
@@ -641,7 +648,7 @@ urls.each_with_index do |url, index|
     end
 
     content += "\n"
-    full_path = resolve_full_path(url, directory, overwrite_existing_file_enabled, save_posts_by_subreddits, subreddit, file_format)
+    full_path = resolve_full_path(url, directory, overwrite_existing_file_enabled, save_posts_by_subreddits, subreddit, file_format, use_timestamped_directories, post_timestamp)
 
     puts "🔃Saving...\n"
 
