@@ -18,6 +18,7 @@
         "regexes": []
     },
     "default_save_location": "DEFAULT_REDDIT_SAVE_LOCATION",
+    "timestamped_directories": true,
     "multi_reddits": {
         "m/stocks": [
             "r/wallstreetbets",

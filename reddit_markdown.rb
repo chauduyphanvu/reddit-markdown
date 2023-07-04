@@ -33,6 +33,7 @@ reply_depth_max = settings['reply_depth_max']
 overwrite_existing_file_enabled = settings['overwrite_existing_file']
 save_posts_by_subreddits = settings['save_posts_by_subreddits']
 show_timestamp = settings['show_timestamp']
+timestamped_directories = settings['timestamped_directories']
 
 # Only apply to replies and not actual post body.
 # When applied, reply body will be replaced by user-defined filtered_message.
@@ -641,7 +642,7 @@ urls.each_with_index do |url, index|
     end
 
     content += "\n"
-    full_path = resolve_full_path(url, directory, overwrite_existing_file_enabled, save_posts_by_subreddits, subreddit, file_format)
+    full_path = resolve_full_path(url, directory, overwrite_existing_file_enabled, save_posts_by_subreddits, subreddit, file_format, post_timestamp)
 
     puts "🔃Saving...\n"
 
