@@ -1,3 +1,7 @@
+## 1.9.0 (Jul 04, 2023)
+### New
+* Add support for organizing saved posts by timestamp (e.g. `2023-07-04`). See README for details.
+
 ## 1.8.0 (Jun 17, 2023)
 ### New
 * N/A

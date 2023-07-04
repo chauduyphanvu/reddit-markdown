@@ -69,6 +69,7 @@ If you are using an older release, make sure to get the latest version of the sc
 | "overwrite_existing_file" | Whether to overwrite existing file if the file name already exists. If set to `false`, a number (starting with 1) will be appended to the file name. | true/false |
 | "save_posts_by_subreddits" | Whether to separate saved files into subfolders named after their subreddits. If set to `true`, the subreddit name will be the name of the subfolder. If set to `false`, files will be saved together under `default_save_location` or a user-provided path. | true/false |
 | "default_save_location" | The default path to save the Markdown file(s). If `save_posts_by_subreddits` is set to `true`, the subreddit name will be appended to the default path. | Path string set as an environment variable <sup>1</sup> |
+| "use_timestamped_directories" | Whether to save files in timestamped directories. If set to `true`, the timestamp will be appended to the path. See [Timestamped Directories](#timestamped-subdirectories) for details. | true/false |
 | "show_timestamp" | Whether to render the timestamp of the replies. If `true`, the timestamp will be converted to the local timezone. | true/false |
 | "filtered_message" | The message to show when a reply is filtered out. | String |
 | "filters" -> "keywords" | The list of keywords against which the replies will be filtered. If a reply contains any of the keywords, it will be filtered out. Keywords are case-sensitive. Leave Array empty to disable filtering. | Array of strings |
@@ -118,7 +119,14 @@ The above workflow uses a self-hosted runner for convenience. To set up a self-h
 
 ## Timestamped subdirectories
 
-`timestamped_subs.rb` is a Ruby script that helps organize your saved Reddit posts by moving them into timestamped subdirectories. This is particularly useful for users who have a large number of saved Reddit posts. It also makes it easier to find posts based on the time they were created.
+Starting in v1.9.0, the feature to organize posts into timestamped directories is now available. By default, this feature is disabled to maintain backward compatibility.
+To enable the feature, open the `settings.json` file and set the `use_timestamped_directories` option to `true`. The change will take effect the next time you run the script.
+
+Organizing posts into timestamped directories allows you to easily locate posts based on their date. For instance, saved posts with a timestamp of `2020-01-01 12:00:00` will be moved to a directory named `2020-01-01`. The new path for one of those posts will be: `<base_dir>/subreddit/2020-01-01/<post>.md`
+
+If you have already downloaded posts prior to enabling the timestamped directories feature, you can use the `timestamped_subs.rb` script to retrospectively organize them. This will enhance your browsing experience and reduce clutter in your file system.
+
+It's important to note that using this script is entirely optional. If you prefer to not place your posts into timestamped directories, you don't need to use it. The script is provided as a convenient tool for users who want a more organized directory structure for their saved Reddit posts.
 
 ### How it works
 
