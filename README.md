@@ -8,6 +8,17 @@ This script saves Reddit posts into local Markdown files for easy reading, shari
 	<img src="https://chauduyphanvu.s3.us-east-2.amazonaws.com/screenshots/Reddit_Markdown_Rendered.png" width="49%" />
 </div>
 
+## Coming Soon
+
+The command line can be intimidating for some users, so I'm working on a graphical user interface (GUI) to make the script more accessible.
+It's going to be a self-hosted web app that you can run locally on your machine. 
+
+This particular feature is a work in progress. Here's a sneak peek of what's coming:
+
+<img src="https://chauduyphanvu.s3.us-east-2.amazonaws.com/screenshots/Reddit_Markdown_UI.png" width="100%" />
+
+Note: UI details are subject to change. Stay tuned for more updates!
+
 ## Usage
 1. **Install Ruby/Python on your device**
     * Depending on the version you want to use, you need to install Ruby or Python on your device.
