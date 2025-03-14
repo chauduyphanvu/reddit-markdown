@@ -1,3 +1,10 @@
+## 1.10.0 (Mar 13, 2025)
+### New
+* Debut the Python version of the script! 🎉
+    * The Python version is now available in the `python` directory.
+    * It is a direct port of the Ruby version, so all features are available.
+    * It is now the primary version of the script (i.e. new features will be added to the Python version first and then ported to the Ruby version if necessary).
+
 ## 1.9.0 (Jul 04, 2023)
 ### New
 * Add support for organizing saved posts by timestamp (e.g. `2023-07-04`). See README for details.

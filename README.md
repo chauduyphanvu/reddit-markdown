@@ -1,7 +1,7 @@
 # reddit-markdown
 
 ## Introduction
-This Ruby script saves Reddit posts into local Markdown files for easy reading, sharing, and archiving. Both post body and replies are supported. You can then use any Markdown reader or knowledge management software to manage the saved posts.
+This script saves Reddit posts into local Markdown files for easy reading, sharing, and archiving. Both post body and replies are supported. You can then use any Markdown reader or knowledge management software to manage the saved posts.
 
 <div>
 	<img src="https://chauduyphanvu.s3.us-east-2.amazonaws.com/screenshots/Reddit_Markdown_Raw.png" width="49%" />
@@ -9,14 +9,16 @@ This Ruby script saves Reddit posts into local Markdown files for easy reading, 
 </div>
 
 ## Usage
-1. **Install Ruby on your device**
-    * https://www.ruby-lang.org/en/documentation/installation/
+1. **Install Ruby/Python on your device**
+    * Depending on the version you want to use, you need to install Ruby or Python on your device.
+      * If you are using the Ruby version, you can download it from [here](https://www.ruby-lang.org/en/downloads/).
+      * If you are using the Python version, you can download it from [here](https://www.python.org/downloads/).
 2. **Download the [latest release](https://github.com/chauduyphanvu/reddit-markdown/releases) of this script**
 3. **Open a terminal**
 4. **Run the script with the following command:**
-    * `ruby reddit-markdown.rb`
+    * `ruby reddit-markdown.rb` or `python reddit-markdown.py`
     * If you call the script from a different folder, you need to specify the path to the script
-        * `ruby /path/to/reddit-markdown.rb`
+        * `ruby /path/to/reddit-markdown.rb` or `python /path/to/reddit-markdown.py`
 	* Tip: Starting with the 1.7.0 release, command-line arguments are supported. See [Command-line Arguments](#command-line-arguments) for details. If you use that option, you can skip the next step.
     * Tip: You can rename the script to anything and place it anywhere you want
 5. **Enter the link(s) to the Reddit post(s) you want to save**
@@ -162,8 +164,8 @@ Make sure to back up your files before running this script to prevent any uninte
 * **Look and feel similar to browsing Reddit on desktop web**
 	* Bonus: Plenty of customizations available
 * **Supports both text and multimedia posts**
-* **Runs anywhere Ruby runs**
-	* Ruby is cross-platform
+* **Runs anywhere Ruby/Python runs**
+	* Ruby/Python is cross-platform
 	* Core logic is platform-agnostic so it can be translated into any other programming languages to run anywhere
 * **Markdown and HTML for universality**
 
@@ -172,6 +174,6 @@ Make sure to back up your files before running this script to prevent any uninte
 	* Reddit hides a subset of replies based on upvotes that you can manually click to show. Those won't be saved by this script.
 * **Only supported on desktop**
 	* But you could remote session from a phone to run the script
-* **Need Ruby installed first**
+* **Need Ruby/Python installed first**
 * **Personal side project with limited bug fixes and features past the initial release**
 	* Pull requests are welcome
