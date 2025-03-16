@@ -1,3 +1,7 @@
+## 1.11.0 (Mar 16, 2025)
+### Improvements
+* Refactor the Python script for better readability and maintainability. No functional changes.
+
 ## 1.10.0 (Mar 13, 2025)
 ### New
 * Debut the Python version of the script! 🎉
