@@ -45,6 +45,23 @@ Note: UI details are subject to change. Stay tuned for more updates!
 	* Starting from v1.4.0, posts can also be saved as HTML files. To do so, get the updated `settings.json` file from that release, and use the `file_format` option. Accepted values are `html` and `md`.
 	* Tip: Starting with the 1.1.0 release, you can set a default path in the `settings.json` file. See [Custom Settings](#custom-settings) for details.
 
+### Usage with Docker
+
+1. Clone the repository locally
+2. Build the docker image
+
+```
+docker build -t reddit-markdown .
+```
+
+3. Run the docker image
+
+```
+docker run -it --rm --name reddit-markdown-container -v $PWD:/app reddit-markdown
+```
+
+4. Follow the instructions of the script as normal (enter URL, directory, etc.)
+
 ## Command-line Arguments
 Starting with the 1.7.0 release, command-line arguments are supported to facilitate automation and integration with other programs (see [Automation](#automation) for details)
 
