@@ -1,6 +1,8 @@
 import datetime
 import logging
+import os
 import re
+import urllib.parse
 from typing import Any, Dict, List
 
 import reddit_utils as utils
@@ -16,6 +18,7 @@ def build_post_content(
     settings: Any,  # If you have a Settings class, you could replace Any with "Settings"
     colors: List[str],
     url: str,
+    target_path: str,
 ) -> str:
     """
     Builds the final Markdown for a post (including title, selftext, replies)
@@ -29,6 +32,7 @@ def build_post_content(
     :param settings: A Settings-like object with user configurations (e.g., show_upvotes, filters, etc.)
     :param colors: A list of color symbols (strings) used to visually distinguish reply depths
     :param url: The post's original URL (used for reference if needed)
+    :param target_path: The absolute path where the final file will be saved.
     :return: A single string containing Markdown (or near-Markdown) representing the post content
     """
 
@@ -86,9 +90,21 @@ def build_post_content(
             post_selftext.replace("&amp;", "&")
             .replace("&lt;", "<")
             .replace("&gt;", ">")
-            .replace("&quot;", '"')
+            .replace("&quot;", "\"")
         )
         lines.append("> " + selftext_escaped.replace("\n", "\n> ") + "\n")
+
+    # Media handling (video, gif, etc.)
+    if settings.enable_media_downloads:
+        media_path = os.path.join(os.path.dirname(target_path), "media")
+        if post_data.get("is_video"):
+            video_url = post_data.get("media", {}).get("reddit_video", {}).get("fallback_url")
+            if video_url:
+                utils.ensure_dir_exists(media_path)
+                video_filename = os.path.basename(urllib.parse.urlparse(video_url).path)
+                local_video_path = os.path.join(media_path, video_filename)
+                if utils.download_media(video_url, local_video_path):
+                    lines.append(f"<video controls src=\"./media/{video_filename}\"></video>\n")
 
     # Count total replies (including deeper children)
     total_replies = len(replies_data)
@@ -98,6 +114,7 @@ def build_post_content(
 
     lines.append(f"💬 ~ {total_replies} replies\n")
     lines.append("---\n\n")
+
 
     # Process top-level replies
     for reply_obj in replies_data:

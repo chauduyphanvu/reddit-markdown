@@ -61,6 +61,9 @@ class Settings:
         self.use_timestamped_directories: bool = self.raw.get(
             "use_timestamped_directories", False
         )
+        self.enable_media_downloads: bool = self.raw.get(
+            "enable_media_downloads", True
+        )
 
         # Filtering options
         self.filtered_message: str = self.raw.get("filtered_message", "Filtered")

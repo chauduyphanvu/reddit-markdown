@@ -112,21 +112,6 @@ def _process_single_url(
     # The replies (index 1)
     replies_data = data[1].get("data", {}).get("children", [])
 
-    # Build the content in Markdown
-    raw_markdown = build_post_content(
-        post_data=post_data,
-        replies_data=replies_data,
-        settings=settings,
-        colors=colors,
-        url=url,
-    )
-
-    # Convert to HTML if required
-    if settings.file_format.lower() == "html":
-        final_content = utils.markdown_to_html(raw_markdown)
-    else:
-        final_content = raw_markdown
-
     # Derive timestamp if needed
     from datetime import datetime
 
@@ -135,7 +120,7 @@ def _process_single_url(
         dt = datetime.utcfromtimestamp(post_data["created_utc"])
         post_timestamp = dt.strftime("%Y-%m-%d %H:%M:%S")
 
-    # Generate a filename and save the file
+    # Generate a filename
     target_path = utils.generate_filename(
         base_dir=base_save_dir,
         url=url,
@@ -145,6 +130,22 @@ def _process_single_url(
         file_format=settings.file_format,
         overwrite=settings.overwrite_existing_file,
     )
+
+    # Build the content in Markdown
+    raw_markdown = build_post_content(
+        post_data=post_data,
+        replies_data=replies_data,
+        settings=settings,
+        colors=colors,
+        url=url,
+        target_path=target_path,
+    )
+
+    # Convert to HTML if required
+    if settings.file_format.lower() == "html":
+        final_content = utils.markdown_to_html(raw_markdown)
+    else:
+        final_content = raw_markdown
 
     logger.info("Saving post to %s", target_path)
     _write_to_file(Path(target_path), final_content)

@@ -222,3 +222,24 @@ def markdown_to_html(md_content: str) -> str:
     except ImportError:
         logger.warning("markdown package not installed; using <pre> fallback.")
         return f"<html><body><pre>{md_content}</pre></body></html>"
+
+
+def download_media(url: str, file_path: str) -> bool:
+    """
+    Downloads a media file from a URL and saves it to a local path.
+
+    :param url: The URL of the media to download.
+    :param file_path: The local path to save the media file.
+    :return: True if download is successful, False otherwise.
+    """
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=10) as response, open(
+            file_path, "wb"
+        ) as out_file:
+            out_file.write(response.read())
+        logger.info("Successfully downloaded media to %s", file_path)
+        return True
+    except Exception as e:
+        logger.error("Could not download media from %s. Reason: %s", url, e)
+        return False
