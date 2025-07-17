@@ -1,3 +1,8 @@
+## 1.12.0 (Jul 17, 2025)
+### New
+* **Authentication Support:** The script now supports authenticating with your Reddit account. This is highly recommended to avoid being rate-limited, especially when downloading a large number of posts.
+* **Video and GIF Handling:** Support has been added for downloading videos and GIFs from Reddit posts.
+
 ## 1.11.0 (Mar 16, 2025)
 ### Improvements
 * Refactor the Python script for better readability and maintainability. No functional changes.
