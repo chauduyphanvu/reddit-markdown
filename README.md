@@ -8,16 +8,6 @@ This script saves Reddit posts into local Markdown files for easy reading, shari
 	<img src="https://chauduyphanvu.s3.us-east-2.amazonaws.com/screenshots/Reddit_Markdown_Rendered.png" width="49%" />
 </div>
 
-## Coming Soon
-
-The command line can be intimidating for some users, so I'm working on a graphical user interface (GUI) to make the script more accessible.
-It's going to be a self-hosted web app that you can run locally on your machine. 
-
-This particular feature is a work in progress. Here's a sneak peek of what's coming:
-
-<img src="https://chauduyphanvu.s3.us-east-2.amazonaws.com/screenshots/Reddit_Markdown_UI.png" width="100%" />
-
-Note: UI details are subject to change. Stay tuned for more updates!
 
 ## Usage
 1. **Install Ruby/Python on your device**
@@ -27,9 +17,9 @@ Note: UI details are subject to change. Stay tuned for more updates!
 2. **Download the [latest release](https://github.com/chauduyphanvu/reddit-markdown/releases) of this script**
 3. **Open a terminal**
 4. **Run the script with the following command:**
-    * `ruby reddit-markdown.rb` or `python reddit-markdown.py`
+    * `ruby reddit_markdown.rb` or `python3 python/main.py`
     * If you call the script from a different folder, you need to specify the path to the script
-        * `ruby /path/to/reddit-markdown.rb` or `python /path/to/reddit-markdown.py`
+        * `ruby /path/to/reddit_markdown.rb` or `python3 /path/to/python/main.py`
 	* Tip: Starting with the 1.7.0 release, command-line arguments are supported. See [Command-line Arguments](#command-line-arguments) for details. If you use that option, you can skip the next step.
     * Tip: You can rename the script to anything and place it anywhere you want
 5. **Enter the link(s) to the Reddit post(s) you want to save**
@@ -65,7 +55,6 @@ To avoid being rate-limited by Reddit, you can configure the script to authentic
     *   Open the `settings.json` file.
     *   Set `login_on_startup` to `true`.
     *   Under the `auth` section, you will see your app's `client_id` (a string of characters under the app name) and `client_secret`. Copy and paste these into the corresponding fields in `settings.json`.
-    *   Fill in your Reddit `username` and `password`.
 
 **Important:** Your `settings.json` file contains sensitive credentials. It is already listed in the `.gitignore` file to prevent you from accidentally committing it to a public repository. **Do not share this file or your credentials.** Each person using this script should create their own Reddit app and `settings.json` file.
 
@@ -183,7 +172,7 @@ You will need to set the `base_dir` variable in the script to the directory wher
 Once you've done that, you can simply run the script by using the `ruby` command followed by the script name in your terminal:
 
 ```bash
-ruby reddit_post_organiser.rb
+ruby timestamped_subs.rb
 ```
 
 The script will then print out log messages indicating which files it is processing, whether it's created any new directories, and whether it's moved any files.
