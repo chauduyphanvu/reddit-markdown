@@ -5,10 +5,12 @@ from __future__ import (
 )
 
 import logging
+import time
 from pathlib import Path
 from typing import List
 
 import reddit_utils as utils
+import auth
 from cli_args import CommandLineArgs
 from post_renderer import build_post_content
 from settings import Settings
@@ -21,16 +23,26 @@ def main() -> None:
     """
     Orchestrates the entire flow:
     1. Load settings
-    2. Parse CLI args
-    3. Fetch & clean Reddit post URLs
-    4. Resolve output directory
-    5. Process each URL (download, render, save)
+    2. Authenticate with Reddit (optional)
+    3. Parse CLI args
+    4. Fetch & clean Reddit post URLs
+    5. Resolve output directory
+    6. Process each URL (download, render, save)
     """
     settings = _load_settings()
+    access_token = ""
+    if settings.login_on_startup:
+        access_token = auth.get_access_token(
+            settings.client_id,
+            settings.client_secret,
+        )
+        if not access_token:
+            logger.warning("Could not log in. Proceeding without authentication.")
+
     cli_args = _parse_cli_args()
-    all_urls = _fetch_urls(settings, cli_args)
+    all_urls = _fetch_urls(settings, cli_args, access_token)
     base_save_dir = utils.resolve_save_dir(settings.default_save_location)
-    _process_all_urls(all_urls, settings, base_save_dir)
+    _process_all_urls(all_urls, settings, base_save_dir, access_token)
 
     logger.info("Thanks for using this script!")
     logger.info("If you have issues, open an issue on GitHub:")
@@ -54,16 +66,16 @@ def _parse_cli_args() -> CommandLineArgs:
     return CommandLineArgs()
 
 
-def _fetch_urls(settings: Settings, cli_args: CommandLineArgs) -> List[str]:
+def _fetch_urls(settings: Settings, cli_args: CommandLineArgs, access_token: str) -> List[str]:
     """
     Uses UrlFetcher to gather the final list of Reddit post URLs, then cleans them.
     """
-    fetcher = UrlFetcher(settings, cli_args)
+    fetcher = UrlFetcher(settings, cli_args, access_token)
     return [utils.clean_url(u) for u in fetcher.urls if u]
 
 
 def _process_all_urls(
-    all_urls: List[str], settings: Settings, base_save_dir: str
+    all_urls: List[str], settings: Settings, base_save_dir: str, access_token: str
 ) -> None:
     """
     Iterates over the list of URLs and processes each (download, render, and save).
@@ -77,7 +89,10 @@ def _process_all_urls(
             settings=settings,
             base_save_dir=base_save_dir,
             colors=colors,
+            access_token=access_token,
         )
+        time.sleep(1)  # Avoid rate-limiting
+
 
 
 def _process_single_url(
@@ -88,6 +103,7 @@ def _process_single_url(
     settings: Settings,
     base_save_dir: str,
     colors: List[str],
+    access_token: str,
 ) -> None:
     """
     Handles the downloading of JSON data for a single Reddit URL,
@@ -98,7 +114,7 @@ def _process_single_url(
         return
 
     logger.info("Processing post %d of %d: %s", index, total, url)
-    data = utils.download_post_json(url)
+    data = utils.download_post_json(url, access_token)
     if not data or len(data) < 2:
         logger.error("Could not fetch or parse post data for %s. Skipping...", url)
         return

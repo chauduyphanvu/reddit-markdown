@@ -5,9 +5,7 @@ import os
 import re
 import sys
 import time
-import urllib.error
-import urllib.parse
-import urllib.request
+import requests
 from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
@@ -38,20 +36,23 @@ def valid_url(url: str) -> bool:
     )
 
 
-def download_post_json(url: str) -> Optional[Any]:
+def download_post_json(url: str, access_token: str = "") -> Optional[Any]:
     """
-    Appends '.json' to a Reddit post URL (if not present) and fetches the JSON data.
-
-    :param url: The original or partially cleaned Reddit post URL.
-    :return: The parsed JSON as a Python object (usually a list/dict hierarchy),
-             or None if an error occurs.
+    Appends '.json' to a Reddit post URL and fetches the JSON data.
+    Uses an access token for authenticated requests if provided.
     """
     json_url = url if url.endswith(".json") else url + ".json"
-    req = urllib.request.Request(json_url, headers={"User-Agent": "Mozilla/5.0"})
+    headers = {"User-Agent": "MyRedditScript/0.1"}
+    if access_token:
+        # Use the OAuth endpoint for authenticated requests
+        json_url = json_url.replace("https://www.reddit.com", "https://oauth.reddit.com")
+        headers["Authorization"] = f"bearer {access_token}"
+
     try:
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            return json.loads(resp.read().decode())
-    except Exception as e:
+        res = requests.get(json_url, headers=headers, timeout=10)
+        res.raise_for_status()
+        return res.json()
+    except requests.exceptions.RequestException as e:
         logger.error("Could not download JSON for %s. Reason: %s", url, e)
         return None
 
@@ -227,19 +228,16 @@ def markdown_to_html(md_content: str) -> str:
 def download_media(url: str, file_path: str) -> bool:
     """
     Downloads a media file from a URL and saves it to a local path.
-
-    :param url: The URL of the media to download.
-    :param file_path: The local path to save the media file.
-    :return: True if download is successful, False otherwise.
     """
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    headers = {"User-Agent": "MyRedditScript/0.1"}
     try:
-        with urllib.request.urlopen(req, timeout=10) as response, open(
-            file_path, "wb"
-        ) as out_file:
-            out_file.write(response.read())
+        with requests.get(url, headers=headers, stream=True, timeout=10) as r:
+            r.raise_for_status()
+            with open(file_path, "wb") as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    f.write(chunk)
         logger.info("Successfully downloaded media to %s", file_path)
         return True
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
         logger.error("Could not download media from %s. Reason: %s", url, e)
         return False

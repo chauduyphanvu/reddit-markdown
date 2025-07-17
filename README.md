@@ -45,6 +45,30 @@ Note: UI details are subject to change. Stay tuned for more updates!
 	* Starting from v1.4.0, posts can also be saved as HTML files. To do so, get the updated `settings.json` file from that release, and use the `file_format` option. Accepted values are `html` and `md`.
 	* Tip: Starting with the 1.1.0 release, you can set a default path in the `settings.json` file. See [Custom Settings](#custom-settings) for details.
 
+## Authentication (Optional)
+
+To avoid being rate-limited by Reddit, you can configure the script to authenticate with your Reddit account. This is highly recommended if you plan to download a large number of posts.
+
+1.  **Create a `settings.json` file:**
+    *   In the root directory of the project, make a copy of `settings.json.example` and rename it to `settings.json`.
+
+2.  **Create a Reddit App:**
+    *   Go to [https://www.reddit.com/prefs/apps](https://www.reddit.com/prefs/apps).
+    *   Click "are you a developer? create an app...".
+    *   Fill out the form:
+        *   **name:** `reddit-markdown` (or any other name)
+        *   **type:** select `script`
+        *   **redirect uri:** `http://localhost:8080` (this is required but won't be used)
+    *   Click "create app".
+
+3.  **Configure `settings.json`:**
+    *   Open the `settings.json` file.
+    *   Set `login_on_startup` to `true`.
+    *   Under the `auth` section, you will see your app's `client_id` (a string of characters under the app name) and `client_secret`. Copy and paste these into the corresponding fields in `settings.json`.
+    *   Fill in your Reddit `username` and `password`.
+
+**Important:** Your `settings.json` file contains sensitive credentials. It is already listed in the `.gitignore` file to prevent you from accidentally committing it to a public repository. **Do not share this file or your credentials.** Each person using this script should create their own Reddit app and `settings.json` file.
+
 ## Command-line Arguments
 Starting with the 1.7.0 release, command-line arguments are supported to facilitate automation and integration with other programs (see [Automation](#automation) for details)
 

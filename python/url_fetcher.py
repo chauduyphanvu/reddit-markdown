@@ -3,9 +3,7 @@ import json
 import logging
 import os
 import random
-import urllib.error
-import urllib.parse
-import urllib.request
+import requests
 from typing import Any, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -19,17 +17,20 @@ class UrlFetcher:
     """
 
     BASE_URL: str = "https://www.reddit.com"
+    OAUTH_BASE_URL: str = "https://oauth.reddit.com"
 
-    def __init__(self, settings: Any, cli_args: Any) -> None:
+    def __init__(self, settings: Any, cli_args: Any, access_token: str = "") -> None:
         """
         Initializes the UrlFetcher with settings and CLI arguments, then populates
         self.urls with any found from direct arguments, files, subreddits, or multireddits.
 
         :param settings: The Settings object with relevant config (e.g., multi_reddits).
         :param cli_args: The CommandLineArgs object containing user CLI input.
+        :param access_token: The OAuth access token for authenticated requests.
         """
         self.settings = settings
         self.cli_args = cli_args
+        self.access_token = access_token
         self.urls: List[str] = []
 
         # Convert CLI arguments to actual post links
@@ -168,7 +169,10 @@ class UrlFetcher:
         :return: A list of post URLs.
         """
         subreddit_str = subreddit_str.lstrip("/")  # remove leading slash if present
-        url = f"{self.BASE_URL}/{subreddit_str}"
+        
+        base = self.OAUTH_BASE_URL if self.access_token else self.BASE_URL
+        url = f"{base}/{subreddit_str}"
+
         if best:
             url += "/best"
 
@@ -196,15 +200,14 @@ class UrlFetcher:
         :return: The parsed JSON if successful, otherwise None.
         """
         json_url = url if url.endswith(".json") else url + ".json"
+        headers = {"User-Agent": "MyRedditScript/0.1"}
+        if self.access_token:
+            headers["Authorization"] = f"bearer {self.access_token}"
+
         try:
-            req = urllib.request.Request(
-                json_url, headers={"User-Agent": "Mozilla/5.0"}
-            )
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                return json.loads(resp.read().decode())
-        except (urllib.error.HTTPError, urllib.error.URLError) as e:
+            res = requests.get(json_url, headers=headers, timeout=10)
+            res.raise_for_status()
+            return res.json()
+        except requests.exceptions.RequestException as e:
             logger.error("Failed to download JSON data for %s: %s", url, e)
-            return None
-        except Exception as e:
-            logger.error("Unexpected error while fetching %s: %s", url, e)
             return None

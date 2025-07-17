@@ -65,6 +65,14 @@ class Settings:
             "enable_media_downloads", True
         )
 
+        # Auth settings
+        auth_settings = self.raw.get("auth", {})
+        self.login_on_startup: bool = auth_settings.get("login_on_startup", False)
+        self.client_id: str = auth_settings.get("client_id", "")
+        self.client_secret: str = auth_settings.get("client_secret", "")
+        self.username: str = auth_settings.get("username", "")
+        self.password: str = auth_settings.get("password", "")
+
         # Filtering options
         self.filtered_message: str = self.raw.get("filtered_message", "Filtered")
         self.filtered_keywords = self.raw.get("filters", {}).get("keywords", [])

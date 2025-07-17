@@ -1,0 +1,67 @@
+{
+    "version": "1.11.0",
+    "file_format": "md",
+    "update_check_on_startup": true,
+    "auth": {
+        "login_on_startup": false,
+        "client_id": "YOUR_CLIENT_ID",
+        "client_secret": "YOUR_CLIENT_SECRET",
+    },
+    "show_upvotes": true,
+    "reply_depth_max": -1,
+    "reply_depth_color_indicators": true,
+    "line_break_between_parent_replies": false,
+    "show_auto_mod_comment": false,
+    "overwrite_existing_file": false,
+    "save_posts_by_subreddits": true,
+    "show_timestamp": true,
+    "filtered_message": "REMOVED DUE TO CUSTOM FILTER(S)",
+    "filters": {
+        "keywords": [],
+        "min_upvotes": 2,
+        "authors": [],
+        "regexes": []
+    },
+    "default_save_location": "DEFAULT_REDDIT_SAVE_LOCATION",
+    "use_timestamped_directories": false,
+    "multi_reddits": {
+        "m/stocks": [
+            "r/wallstreetbets",
+            "r/stocks",
+            "r/investing",
+            "r/options",
+            "r/daytrading",
+            "r/pennystocks",
+            "r/RobinHoodPennyStocks",
+            "r/StockMarket",
+            "r/StocksAndTrading"
+        ],
+        "m/travel": [
+            "r/travel",
+            "r/travelphotography",
+            "r/solotravel",
+            "r/IWantOut",
+            "r/roadtrip",
+            "r/Shoestring",
+            "r/digitalnomad",
+            "r/EarthPorn"
+        ],
+        "m/programming": [
+            "r/programming",
+            "r/learnprogramming",
+            "r/ProgrammerHumor",
+            "r/ProgrammerDadJokes",
+            "r/programminghorror",
+            "r/javascript"
+        ],
+        "m/news": [
+            "r/news",
+            "r/worldnews",
+            "r/politics",
+            "r/technews",
+            "r/science",
+            "r/gamernews",
+            "r/hackernews"
+        ]
+    }
+}
