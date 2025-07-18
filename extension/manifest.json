@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Reddit Markdown",
+  "version": "1.0",
+  "description": "Saves Reddit posts as Markdown files.",
+  "options_page": "options.html",
+  "permissions": [
+    "activeTab",
+    "downloads",
+    "storage"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "128": "icon.png"
+  }
+}

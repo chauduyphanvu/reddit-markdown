@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Reddit Markdown Settings</title>
+  <style>
+    body { font-family: sans-serif; padding: 1em; max-width: 600px; }
+    .setting { margin-bottom: 1em; }
+    label { display: block; margin-bottom: 0.25em; }
+    input[type="text"], input[type="number"], textarea { width: 100%; }
+    textarea { resize: vertical; }
+  </style>
+</head>
+<body>
+  <h1>Settings</h1>
+
+  <div class="setting">
+    <input type="checkbox" id="show_upvotes" name="show_upvotes">
+    <label for="show_upvotes">Show upvotes on posts and comments</label>
+  </div>
+
+  <div class="setting">
+    <input type="checkbox" id="show_timestamp" name="show_timestamp">
+    <label for="show_timestamp">Show timestamp on posts and comments</label>
+  </div>
+
+  <div class="setting">
+    <input type="checkbox" id="line_break_between_parent_replies" name="line_break_between_parent_replies">
+    <label for="line_break_between_parent_replies">Add a line break between top-level comments</label>
+  </div>
+
+  <div class="setting">
+    <input type="checkbox" id="show_auto_mod_comment" name="show_auto_mod_comment">
+    <label for="show_auto_mod_comment">Include the AutoModerator comment</label>
+  </div>
+
+  <div class="setting">
+    <label for="reply_depth_max">Maximum reply depth (-1 for all)</label>
+    <input type="number" id="reply_depth_max" name="reply_depth_max">
+  </div>
+
+  <div class="setting">
+    <label for="filter_min_upvotes">Minimum upvotes to include a comment</label>
+    <input type="number" id="filter_min_upvotes" name="filter_min_upvotes">
+  </div>
+
+  <div class="setting">
+    <label for="filter_keywords">Filter comments containing these keywords (comma-separated)</label>
+    <textarea id="filter_keywords" name="filter_keywords" rows="3"></textarea>
+  </div>
+
+  <div class="setting">
+    <label for="filter_authors">Filter comments from these authors (comma-separated)</label>
+    <textarea id="filter_authors" name="filter_authors" rows="3"></textarea>
+  </div>
+
+  <button id="save">Save</button>
+  <div id="status" style="margin-top: 1em;"></div>
+
+  <script src="options.js"></script>
+</body>
+</html>
