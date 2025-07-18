@@ -1,4 +1,5 @@
 import datetime
+import html
 import logging
 import os
 import re
@@ -94,17 +95,54 @@ def build_post_content(
         )
         lines.append("> " + selftext_escaped.replace("\n", "\n> ") + "\n")
 
-    # Media handling (video, gif, etc.)
+    # Media handling (galleries, videos, images, embeds)
     if settings.enable_media_downloads:
         media_path = os.path.join(os.path.dirname(target_path), "media")
-        if post_data.get("is_video"):
+
+        # 1. Image Galleries
+        if post_data.get("is_gallery"):
+            gallery_items = post_data.get("gallery_data", {}).get("items", [])
+            media_metadata = post_data.get("media_metadata", {})
+            if gallery_items and media_metadata:
+                utils.ensure_dir_exists(media_path)
+                lines.append("### Image Gallery\n")
+                for item in gallery_items:
+                    media_id = item.get("media_id")
+                    meta = media_metadata.get(media_id)
+                    if meta and meta.get("e") == "Image":
+                        img_url = meta.get("s", {}).get("u", "").replace("&amp;", "&")
+                        if img_url:
+                            img_filename = os.path.basename(urllib.parse.urlparse(img_url).path)
+                            local_img_path = os.path.join(media_path, img_filename)
+                            if utils.download_media(img_url, local_img_path):
+                                lines.append(f"![](.{os.path.sep}media{os.path.sep}{img_filename})\n\n")
+                lines.append("\n")
+        
+        # 2. Videos and GIFs
+        elif post_data.get("is_video"):
             video_url = post_data.get("media", {}).get("reddit_video", {}).get("fallback_url")
             if video_url:
                 utils.ensure_dir_exists(media_path)
                 video_filename = os.path.basename(urllib.parse.urlparse(video_url).path)
                 local_video_path = os.path.join(media_path, video_filename)
                 if utils.download_media(video_url, local_video_path):
-                    lines.append(f"<video controls src=\"./media/{video_filename}\"></video>\n")
+                    lines.append(f'<video controls src="./media/{video_filename}"></video>\n')
+
+        # 3. Embedded Content (Streamable, etc.)
+        elif post_data.get("media") and post_data["media"].get("oembed"):
+            oembed_html = post_data["media"]["oembed"].get("html")
+            if oembed_html:
+                lines.append(html.unescape(oembed_html) + "\n")
+        
+        # 4. Simple Image Link (from post_hint)
+        elif post_data.get("post_hint") == "image":
+            image_url = post_data.get("url")
+            if image_url:
+                utils.ensure_dir_exists(media_path)
+                img_filename = os.path.basename(urllib.parse.urlparse(image_url).path)
+                local_img_path = os.path.join(media_path, img_filename)
+                if utils.download_media(image_url, local_img_path):
+                    lines.append(f"![](.{os.path.sep}media{os.path.sep}{img_filename})\n")
 
     # Count total replies (including deeper children)
     total_replies = len(replies_data)

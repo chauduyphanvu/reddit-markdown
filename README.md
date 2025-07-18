@@ -10,10 +10,12 @@ This script saves Reddit posts into local Markdown files for easy reading, shari
 
 
 ## Usage
-1. **Install Ruby/Python on your device**
-    * Depending on the version you want to use, you need to install Ruby or Python on your device.
-      * If you are using the Ruby version, you can download it from [here](https://www.ruby-lang.org/en/downloads/).
-      * If you are using the Python version, you can download it from [here](https://www.python.org/downloads/).
+1. **Install Ruby/Python and Dependencies**
+    * **Ruby**: If you are using the Ruby version, you can download it from [here](https://www.ruby-lang.org/en/downloads/).
+    * **Python**: If you are using the Python version, you can download it from [here](https://www.python.org/downloads/). You will also need to install the required packages:
+      ```bash
+      pip3 install -r python/requirements.txt
+      ```
 2. **Download the [latest release](https://github.com/chauduyphanvu/reddit-markdown/releases) of this script**
 3. **Open a terminal**
 4. **Run the script with the following command:**
