@@ -4,6 +4,7 @@ const defaults = {
   line_break_between_parent_replies: true,
   show_auto_mod_comment: false,
   reply_depth_max: -1,
+  enable_media_downloads: true,
   filter_min_upvotes: 0,
   filter_keywords: [],
   filter_authors: []
@@ -17,6 +18,7 @@ function save_options() {
     line_break_between_parent_replies: document.getElementById('line_break_between_parent_replies').checked,
     show_auto_mod_comment: document.getElementById('show_auto_mod_comment').checked,
     reply_depth_max: parseInt(document.getElementById('reply_depth_max').value, 10),
+    enable_media_downloads: document.getElementById('enable_media_downloads').checked,
     filter_min_upvotes: parseInt(document.getElementById('filter_min_upvotes').value, 10),
     filter_keywords: document.getElementById('filter_keywords').value.split(',').map(s => s.trim()).filter(Boolean),
     filter_authors: document.getElementById('filter_authors').value.split(',').map(s => s.trim()).filter(Boolean),
@@ -41,6 +43,7 @@ function restore_options() {
     document.getElementById('line_break_between_parent_replies').checked = items.line_break_between_parent_replies;
     document.getElementById('show_auto_mod_comment').checked = items.show_auto_mod_comment;
     document.getElementById('reply_depth_max').value = items.reply_depth_max;
+    document.getElementById('enable_media_downloads').checked = items.enable_media_downloads;
     document.getElementById('filter_min_upvotes').value = items.filter_min_upvotes;
     document.getElementById('filter_keywords').value = items.filter_keywords.join(', ');
     document.getElementById('filter_authors').value = items.filter_authors.join(', ');
