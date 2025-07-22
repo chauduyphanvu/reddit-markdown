@@ -1,0 +1,10 @@
+{
+    "id": "obsidian-reddit-markdown",
+    "name": "Reddit Markdown",
+    "version": "1.0.0",
+    "minAppVersion": "0.15.0",
+    "description": "An Obsidian plugin to save Reddit posts as Markdown files.",
+    "author": "Your Name",
+    "authorUrl": "",
+    "isDesktopOnly": false
+}

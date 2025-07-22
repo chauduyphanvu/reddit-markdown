@@ -3,3 +3,4 @@
 /.idea
 /python/__pycache__
 settings.json
+/obsidian-plugin/node_modules

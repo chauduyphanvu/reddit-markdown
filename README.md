@@ -1,7 +1,95 @@
-# reddit-markdown
+# Reddit Markdown
 
-## Introduction
-This script saves Reddit posts into local Markdown files for easy reading, sharing, and archiving. Both post body and replies are supported. You can then use any Markdown reader or knowledge management software to manage the saved posts.
+This project provides a suite of tools for saving Reddit posts as local Markdown files for easy reading, sharing, and archiving. Both the post body and its replies are supported, and you can use any Markdown reader or knowledge management software to manage the saved posts.
+
+## Platforms
+
+This project is available on multiple platforms:
+
+*   **Command-Line Scripts (Python & Ruby)**: For developers and users who are comfortable with the command line.
+*   **Browser Extension (Chrome, Edge, Firefox)**: For a seamless experience directly in your browser.
+*   **Flutter App**: A beautiful and professional cross-platform application.
+*   **Obsidian Plugin**: For a seamless experience directly in Obsidian.
+
+---
+
+## Flutter App
+
+A beautifully-designed and professional Flutter app with a rich user experience.
+
+### Features
+
+*   **Modern UI/UX**: A clean, modern interface built with Material 3, featuring smooth animations.
+*   **Cross-Platform**: Currently built for macOS, but easily portable to Windows, Linux, Android, and iOS.
+*   **Image Galleries**: Support for viewing image galleries within the app.
+*   **Customizable**: An in-app settings screen to control features like showing upvotes, timestamps, and reply depth.
+*   **Shareable**: Easily share the post content to other apps.
+
+### How to Run
+
+1.  **Install Flutter**: Make sure you have Flutter installed and configured on your machine. You can find instructions at [flutter.dev](https://flutter.dev/).
+2.  **Navigate to the App Directory**: `cd reddit_markdown_app`
+3.  **Run the App**: `flutter run`
+
+---
+
+## Browser Extension
+
+A convenient browser extension for Chrome, Edge, and other Chromium-based browsers.
+
+### Features
+
+*   **One-Click Saving**: Save a Reddit post directly from your browser with a single click.
+*   **Media Downloads**: Automatically download and zip up any media (images, videos, galleries) from the post.
+*   **Advanced Settings**: A dedicated options page to customize the extension's behavior.
+*   **Error Handling**: User-friendly notifications for errors and save status.
+
+### How to Install
+
+1.  **Open your browser's extensions page** (e.g., `chrome://extensions` or `edge://extensions`).
+2.  **Enable Developer Mode** (usually a toggle in the top-right corner).
+3.  **Click "Load unpacked"** and select the `extension` directory from this project.
+
+---
+
+## Obsidian Plugin
+
+An Obsidian plugin to save Reddit posts as Markdown files.
+
+### How to Install
+
+1.  Open Obsidian and go to **Settings** > **Community plugins**.
+2.  Turn off **Safe mode**.
+3.  Click **Browse** and search for "Reddit Markdown".
+4.  Click **Install** and then **Enable**.
+
+### Usage
+
+1.  Open the command palette (`Cmd/Ctrl + P`).
+2.  Search for "Fetch Reddit Post" and select it.
+3.  Enter the URL of the Reddit post you want to save.
+4.  Click **Fetch**. The post will be saved to your configured location.
+
+---
+
+## Command-Line Scripts
+
+For developers and users who prefer the command line.
+
+### Usage
+
+1.  **Install Dependencies**:
+    *   **Ruby**: `gem install bundler && bundle install`
+    *   **Python**: `pip3 install -r python/requirements.txt`
+2.  **Run the Script**:
+    *   `ruby reddit_markdown.rb`
+    *   `python3 python/main.py`
+
+See the original documentation below for more details on command-line arguments, authentication, and other advanced features.
+
+---
+
+*Original README content continues below...*
 
 <div>
 	<img src="https://chauduyphanvu.s3.us-east-2.amazonaws.com/screenshots/Reddit_Markdown_Raw.png" width="49%" />
