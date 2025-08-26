@@ -1,5 +1,4 @@
 use anyhow::{Context, Result};
-use chrono::NaiveDateTime;
 use log::{debug, error, info, warn};
 use pulldown_cmark::{html, Parser};
 use regex::Regex;
@@ -10,16 +9,28 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 pub fn clean_url(url: &str) -> String {
-    url.trim()
-        .split("?utm_source")
-        .next()
-        .unwrap_or(url)
-        .to_string()
+    let trimmed = url.trim();
+    match trimmed.find("?utm_source") {
+        Some(pos) => trimmed[..pos].to_string(),
+        None => trimmed.to_string(),
+    }
 }
 
 pub fn valid_url(url: &str) -> bool {
     let re = Regex::new(r"^https://www\.reddit\.com/r/\w+/comments/\w+/[\w_]+/?").unwrap();
     re.is_match(url)
+}
+
+static HTTP_CLIENT: std::sync::OnceLock<reqwest::blocking::Client> = std::sync::OnceLock::new();
+
+fn get_http_client() -> &'static reqwest::blocking::Client {
+    HTTP_CLIENT.get_or_init(|| {
+        reqwest::blocking::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .user_agent("MyRedditScript/0.1")
+            .build()
+            .expect("Failed to create HTTP client")
+    })
 }
 
 pub fn download_post_json(url: &str, access_token: &str) -> Result<Value> {
@@ -31,21 +42,15 @@ pub fn download_post_json(url: &str, access_token: &str) -> Result<Value> {
 
     debug!("Fetching Reddit post JSON from: {}", json_url);
 
-    debug!("Creating HTTP client with 10s timeout...");
-    let client = reqwest::blocking::Client::new();
-    let mut request = client
-        .get(&json_url)
-        .header("User-Agent", "MyRedditScript/0.1")
-        .timeout(std::time::Duration::from_secs(10));
+    let client = get_http_client();
+    let mut request = client.get(&json_url);
 
     let _final_url = if !access_token.is_empty() {
         let oauth_url = json_url.replace("https://www.reddit.com", "https://oauth.reddit.com");
         debug!("Using OAuth endpoint: {}", oauth_url);
         request = client
             .get(&oauth_url)
-            .header("User-Agent", "MyRedditScript/0.1")
-            .header("Authorization", format!("bearer {}", access_token))
-            .timeout(std::time::Duration::from_secs(10));
+            .header("Authorization", format!("bearer {}", access_token));
         oauth_url
     } else {
         debug!("Using public endpoint (no authentication)");
@@ -79,18 +84,12 @@ pub fn download_post_json(url: &str, access_token: &str) -> Result<Value> {
 
 pub fn get_replies(reply_data: &Value, max_depth: i32) -> HashMap<String, HashMap<String, Value>> {
     debug!("Processing replies with max_depth: {}", max_depth);
-    let mut collected: HashMap<String, HashMap<String, Value>> = HashMap::new();
+    let mut collected = HashMap::with_capacity(16); // Pre-allocate with reasonable capacity
 
-    let replies_obj = reply_data.get("data").and_then(|d| d.get("replies"));
-
-    if replies_obj.is_none() || !replies_obj.unwrap().is_object() {
-        return collected;
-    }
+    let replies_obj = reply_data.pointer("/data/replies");
 
     let children = replies_obj
-        .unwrap()
-        .get("data")
-        .and_then(|d| d.get("children"))
+        .and_then(|r| r.pointer("/data/children"))
         .and_then(|c| c.as_array());
 
     if let Some(children) = children {
@@ -135,6 +134,13 @@ pub fn get_replies(reply_data: &Value, max_depth: i32) -> HashMap<String, HashMa
 
     debug!("Collected {} reply entries", collected.len());
     collected
+}
+
+pub fn markdown_to_html(md_content: &str) -> String {
+    let parser = Parser::new(md_content);
+    let mut html_output = String::new();
+    html::push_html(&mut html_output, parser);
+    format!("<html><body>{}</body></html>", html_output)
 }
 
 pub fn resolve_save_dir(config_directory: &str) -> Result<String> {
@@ -285,20 +291,10 @@ pub fn generate_filename(
     Ok(final_path)
 }
 
-pub fn markdown_to_html(md_content: &str) -> String {
-    let parser = Parser::new(md_content);
-    let mut html_output = String::new();
-    html::push_html(&mut html_output, parser);
-
-    format!("<html><body>{}</body></html>", html_output)
-}
-
 pub fn download_media(url: &str, file_path: &str) -> Result<bool> {
-    let client = reqwest::blocking::Client::new();
+    let client = get_http_client();
     let response = client
         .get(url)
-        .header("User-Agent", "MyRedditScript/0.1")
-        .timeout(std::time::Duration::from_secs(10))
         .send()
         .with_context(|| format!("Failed to download media from {}", url))?;
 
@@ -359,6 +355,14 @@ mod tests {
         assert!(html.contains("<strong>"));
     }
 
+    #[test]
+    fn test_markdown_to_html_basic() {
+        let html = markdown_to_html(TestData::MARKDOWN);
+        assert_html_structure(&html);
+        assert!(html.contains("<h1"));
+        assert!(html.contains("<strong"));
+    }
+
     fn create_empty_reply_json() -> serde_json::Value {
         json!({
             "data": {
@@ -380,14 +384,6 @@ mod tests {
         assert!(!valid_url(TestUrls::INVALID_EXAMPLE));
         assert!(!valid_url(TestUrls::INVALID_NOT_URL));
         assert!(!valid_url(TestUrls::INVALID_SUBREDDIT));
-    }
-
-    #[test]
-    fn test_markdown_to_html_basic() {
-        let html = markdown_to_html(TestData::MARKDOWN);
-        assert_html_structure(&html);
-        assert!(html.contains("<h1"));
-        assert!(html.contains("<strong"));
     }
 
     #[test]

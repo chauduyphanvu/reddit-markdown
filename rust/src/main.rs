@@ -7,10 +7,8 @@ mod settings;
 mod url_fetcher;
 
 use anyhow::Result;
-use chrono::NaiveDateTime;
 use indicatif::{ProgressBar, ProgressStyle};
 use log::{debug, error, info, warn};
-use serde_json::Value;
 use std::fs;
 use std::path::Path;
 use std::thread;
@@ -102,8 +100,14 @@ fn fetch_urls(
     Ok(fetcher
         .urls
         .into_iter()
-        .map(|u| clean_url(&u))
-        .filter(|u| !u.is_empty())
+        .filter_map(|u| {
+            let cleaned = clean_url(&u);
+            if cleaned.is_empty() {
+                None
+            } else {
+                Some(cleaned)
+            }
+        })
         .collect())
 }
 
@@ -250,9 +254,11 @@ fn process_single_url(
     debug!("Found {} replies to process", replies_data.len());
 
     let post_timestamp = if let Some(created_utc) = post_data["created_utc"].as_f64() {
-        let dt = NaiveDateTime::from_timestamp_opt(created_utc as i64, 0)
-            .unwrap_or_else(|| NaiveDateTime::from_timestamp_opt(0, 0).unwrap());
-        dt.format("%Y-%m-%d %H:%M:%S").to_string()
+        if let Some(dt) = chrono::DateTime::from_timestamp(created_utc as i64, 0) {
+            dt.format("%Y-%m-%d %H:%M:%S").to_string()
+        } else {
+            String::new()
+        }
     } else {
         String::new()
     };

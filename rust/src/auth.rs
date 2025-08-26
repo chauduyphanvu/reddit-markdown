@@ -6,12 +6,21 @@ use std::collections::HashMap;
 #[derive(Debug, Deserialize)]
 struct AccessTokenResponse {
     access_token: String,
+    #[allow(dead_code)]
     token_type: String,
+    #[allow(dead_code)]
     expires_in: i64,
 }
 
 pub fn get_access_token(client_id: &str, client_secret: &str) -> Result<String> {
-    let client = reqwest::blocking::Client::new();
+    static HTTP_CLIENT: std::sync::OnceLock<reqwest::blocking::Client> = std::sync::OnceLock::new();
+    let client = HTTP_CLIENT.get_or_init(|| {
+        reqwest::blocking::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .user_agent("MyRedditScript/0.1")
+            .build()
+            .expect("Failed to create HTTP client")
+    });
 
     let mut params = HashMap::new();
     params.insert("grant_type", "client_credentials");
@@ -19,9 +28,7 @@ pub fn get_access_token(client_id: &str, client_secret: &str) -> Result<String> 
     let response = client
         .post("https://www.reddit.com/api/v1/access_token")
         .basic_auth(client_id, Some(client_secret))
-        .header("User-Agent", "MyRedditScript/0.1")
         .form(&params)
-        .timeout(std::time::Duration::from_secs(10))
         .send()
         .context("Failed to send authentication request")?;
 

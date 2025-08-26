@@ -1,14 +1,16 @@
 use anyhow::Result;
-use chrono::NaiveDateTime;
-use log::{debug, info, warn};
+use log::debug;
 use regex::Regex;
 use serde_json::Value;
-use std::collections::HashMap;
 use std::path::Path;
 
 use crate::filters::apply_filter;
 use crate::reddit_utils::{download_media, ensure_dir_exists, get_replies};
 use crate::settings::Settings;
+
+thread_local! {
+    static USER_RE: Regex = Regex::new(r"u/(\w+)").unwrap();
+}
 
 pub fn build_post_content(
     post_data: &Value,
@@ -29,9 +31,11 @@ pub fn build_post_content(
     let created_utc = post_data["created_utc"].as_f64();
 
     let post_timestamp = if let Some(timestamp) = created_utc {
-        let dt = NaiveDateTime::from_timestamp_opt(timestamp as i64, 0)
-            .unwrap_or_else(|| NaiveDateTime::from_timestamp_opt(0, 0).unwrap());
-        dt.format("%Y-%m-%d %H:%M:%S").to_string()
+        if let Some(dt) = chrono::DateTime::from_timestamp(timestamp as i64, 0) {
+            dt.format("%Y-%m-%d %H:%M:%S").to_string()
+        } else {
+            String::new()
+        }
     } else {
         String::new()
     };
@@ -203,9 +207,11 @@ pub fn build_post_content(
 
         let created_utc = reply_obj["data"]["created_utc"].as_f64().unwrap_or(0.0);
         let top_reply_timestamp = if settings.show_timestamp && created_utc > 0.0 {
-            let dt = NaiveDateTime::from_timestamp_opt(created_utc as i64, 0)
-                .unwrap_or_else(|| NaiveDateTime::from_timestamp_opt(0, 0).unwrap());
-            dt.format("%Y-%m-%d %H:%M:%S").to_string()
+            if let Some(dt) = chrono::DateTime::from_timestamp(created_utc as i64, 0) {
+                dt.format("%Y-%m-%d %H:%M:%S").to_string()
+            } else {
+                String::new()
+            }
         } else {
             String::new()
         };
@@ -252,13 +258,19 @@ pub fn build_post_content(
                 &settings.filtered_message,
             );
 
-            let formatted = filtered_text
-                .replace("&gt;", ">")
-                .replace("\n", "\n\t")
-                .replace('\r', "");
+            // Reuse compiled regex
+            thread_local! {
+                static USER_RE: Regex = Regex::new(r"u/(\w+)").unwrap();
+            }
 
-            let re = Regex::new(r"u/(\w+)").unwrap();
-            let formatted = re.replace_all(&formatted, r"[u/$1](https://www.reddit.com/user/$1)");
+            let formatted = USER_RE.with(|re| {
+                let temp = filtered_text
+                    .replace("&gt;", ">")
+                    .replace("\n", "\n\t")
+                    .replace('\r', "");
+                re.replace_all(&temp, r"[u/$1](https://www.reddit.com/user/$1)")
+                    .into_owned()
+            });
 
             lines.push(format!("\t{}\n\n", formatted));
         }
@@ -307,9 +319,11 @@ pub fn build_post_content(
             };
 
             let child_ts = if settings.show_timestamp && child_created_utc > 0.0 {
-                let dt = NaiveDateTime::from_timestamp_opt(child_created_utc as i64, 0)
-                    .unwrap_or_else(|| NaiveDateTime::from_timestamp_opt(0, 0).unwrap());
-                format!("_( {} )_", dt.format("%Y-%m-%d %H:%M:%S"))
+                if let Some(dt) = chrono::DateTime::from_timestamp(child_created_utc as i64, 0) {
+                    format!("_( {} )_", dt.format("%Y-%m-%d %H:%M:%S"))
+                } else {
+                    String::new()
+                }
             } else {
                 String::new()
             };
@@ -344,10 +358,11 @@ pub fn build_post_content(
                     .replace("^^[", "[")
                     .replace("^^(", "(");
 
-                let re = Regex::new(r"u/(\w+)").unwrap();
-                child_formatted = re
-                    .replace_all(&child_formatted, r"[u/$1](https://www.reddit.com/user/$1)")
-                    .to_string();
+                USER_RE.with(|re| {
+                    child_formatted = re
+                        .replace_all(&child_formatted, r"[u/$1](https://www.reddit.com/user/$1)")
+                        .into_owned();
+                });
                 child_formatted = child_formatted.replace('\n', &format!("\n{}\t", indent));
 
                 lines.push(format!("{}\t{}\n\n", indent, child_formatted));

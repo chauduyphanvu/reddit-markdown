@@ -216,11 +216,16 @@ impl UrlFetcher {
             format!("{}.json", url)
         };
 
-        let client = reqwest::blocking::Client::new();
-        let mut request = client
-            .get(&json_url)
-            .header("User-Agent", "MyRedditScript/0.1")
-            .timeout(std::time::Duration::from_secs(10));
+        static HTTP_CLIENT: std::sync::OnceLock<reqwest::blocking::Client> =
+            std::sync::OnceLock::new();
+        let client = HTTP_CLIENT.get_or_init(|| {
+            reqwest::blocking::Client::builder()
+                .timeout(std::time::Duration::from_secs(10))
+                .user_agent("MyRedditScript/0.1")
+                .build()
+                .expect("Failed to create HTTP client")
+        });
+        let mut request = client.get(&json_url);
 
         if !access_token.is_empty() {
             request = request.header("Authorization", format!("bearer {}", access_token));

@@ -31,3 +31,18 @@ path = "src/main.rs"
 mockito = "1.4"
 tempfile = "3.10"
 serde_json = "1.0"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.dev]
+opt-level = 1
+
+[profile.bench]
+opt-level = 3
+lto = true
+codegen-units = 1
