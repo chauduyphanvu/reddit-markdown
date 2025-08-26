@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod cli_args;
+pub mod common;
 pub mod filters;
 pub mod post_renderer;
 pub mod reddit_utils;

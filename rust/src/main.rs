@@ -121,8 +121,22 @@ fn process_all_urls(
     let total_urls = all_urls.len();
 
     info!("Starting to process {} Reddit posts...", total_urls);
+    let pb = create_progress_bar(total_urls);
 
-    // Create progress bar
+    let (successful_count, failed_count) = process_urls_with_progress(
+        &all_urls,
+        settings,
+        base_save_dir,
+        &colors,
+        access_token,
+        &pb,
+    );
+
+    finish_processing(&pb, successful_count, failed_count, total_urls);
+    Ok(())
+}
+
+fn create_progress_bar(total_urls: usize) -> ProgressBar {
     let pb = ProgressBar::new(total_urls as u64);
     pb.set_style(
         ProgressStyle::default_bar()
@@ -130,22 +144,24 @@ fn process_all_urls(
             .unwrap()
             .progress_chars("#>-")
     );
+    pb
+}
 
+fn process_urls_with_progress(
+    all_urls: &[String],
+    settings: &Settings,
+    base_save_dir: &str,
+    colors: &[&str],
+    access_token: &str,
+    pb: &ProgressBar,
+) -> (usize, usize) {
     let mut successful_count = 0;
     let mut failed_count = 0;
+    let total_urls = all_urls.len();
 
     for (i, url) in all_urls.iter().enumerate() {
         let post_num = i + 1;
-        pb.set_message(format!(
-            "Processing post {}/{}: {}",
-            post_num,
-            total_urls,
-            if url.len() > 50 {
-                format!("{}...", &url[..47])
-            } else {
-                url.to_string()
-            }
-        ));
+        update_progress_message(pb, post_num, total_urls, url);
 
         match process_single_url(
             post_num,
@@ -153,7 +169,7 @@ fn process_all_urls(
             total_urls,
             settings,
             base_save_dir,
-            &colors,
+            colors,
             access_token,
         ) {
             Ok(()) => {
@@ -176,6 +192,28 @@ fn process_all_urls(
         thread::sleep(Duration::from_secs(1));
     }
 
+    (successful_count, failed_count)
+}
+
+fn update_progress_message(pb: &ProgressBar, post_num: usize, total_urls: usize, url: &str) {
+    pb.set_message(format!(
+        "Processing post {}/{}: {}",
+        post_num,
+        total_urls,
+        if url.len() > 50 {
+            format!("{}...", &url[..47])
+        } else {
+            url.to_string()
+        }
+    ));
+}
+
+fn finish_processing(
+    pb: &ProgressBar,
+    successful_count: usize,
+    failed_count: usize,
+    total_urls: usize,
+) {
     pb.finish_with_message(format!(
         "Completed! {} successful, {} failed",
         successful_count, failed_count
@@ -189,8 +227,6 @@ fn process_all_urls(
     } else {
         info!("All {} posts processed successfully!", total_urls);
     }
-
-    Ok(())
 }
 
 fn process_single_url(
@@ -211,6 +247,25 @@ fn process_single_url(
 
     debug!("Processing post {} of {}: {}", index, total, url);
 
+    let post_data = fetch_and_parse_post_data(url, access_token)?;
+    let target_path = generate_target_path(&post_data, base_save_dir, url, settings)?;
+    let content = build_and_format_content(&post_data, settings, colors, url, &target_path)?;
+
+    write_to_file(&target_path, &content)?;
+
+    log_completion(&post_data, &target_path, start_time);
+    Ok(())
+}
+
+struct PostData {
+    data: serde_json::Value,
+    replies: Vec<serde_json::Value>,
+    title: String,
+    subreddit: String,
+    timestamp: String,
+}
+
+fn fetch_and_parse_post_data(url: &str, access_token: &str) -> Result<PostData> {
     debug!("Downloading JSON data for post: {}", url);
     let data = download_post_json(url, access_token)?;
     debug!("JSON data downloaded successfully");
@@ -221,39 +276,51 @@ fn process_single_url(
         .ok_or_else(|| anyhow::anyhow!("Invalid post data structure"))?;
 
     if data_array.len() < 2 {
-        error!(
-            "Could not fetch or parse post data for {}. Skipping...",
+        return Err(anyhow::anyhow!(
+            "Could not fetch or parse post data for {}. Invalid structure",
             url
-        );
-        return Ok(());
+        ));
     }
-    debug!("Post data structure validated");
 
-    debug!("Extracting post information...");
     let post_info = data_array[0]["data"]["children"]
         .as_array()
         .ok_or_else(|| anyhow::anyhow!("No post info found"))?;
 
     if post_info.is_empty() {
-        error!("No post info found for {}. Skipping...", url);
-        return Ok(());
+        return Err(anyhow::anyhow!("No post info found for {}", url));
     }
-    debug!("Post information extracted successfully");
 
-    let post_data = &post_info[0]["data"];
+    let post_data_json = &post_info[0]["data"];
     let replies_data = data_array[1]["data"]["children"]
         .as_array()
         .map(|v| v.clone())
         .unwrap_or_default();
 
-    let post_title = post_data["title"].as_str().unwrap_or("Untitled");
-    let subreddit = post_data["subreddit_name_prefixed"]
+    let title = post_data_json["title"]
         .as_str()
-        .unwrap_or("unknown");
-    debug!("Processing post '{}' from {}", post_title, subreddit);
+        .unwrap_or("Untitled")
+        .to_string();
+    let subreddit = post_data_json["subreddit_name_prefixed"]
+        .as_str()
+        .unwrap_or("unknown")
+        .to_string();
+
+    debug!("Processing post '{}' from {}", title, subreddit);
     debug!("Found {} replies to process", replies_data.len());
 
-    let post_timestamp = if let Some(created_utc) = post_data["created_utc"].as_f64() {
+    let timestamp = extract_timestamp(post_data_json);
+
+    Ok(PostData {
+        data: post_data_json.clone(),
+        replies: replies_data,
+        title,
+        subreddit,
+        timestamp,
+    })
+}
+
+fn extract_timestamp(post_data: &serde_json::Value) -> String {
+    if let Some(created_utc) = post_data["created_utc"].as_f64() {
         if let Some(dt) = chrono::DateTime::from_timestamp(created_utc as i64, 0) {
             dt.format("%Y-%m-%d %H:%M:%S").to_string()
         } else {
@@ -261,29 +328,45 @@ fn process_single_url(
         }
     } else {
         String::new()
-    };
+    }
+}
 
+fn generate_target_path(
+    post_data: &PostData,
+    base_save_dir: &str,
+    url: &str,
+    settings: &Settings,
+) -> Result<String> {
     debug!("Generating filename for post...");
     let target_path = generate_filename(
         base_save_dir,
         url,
-        post_data["subreddit_name_prefixed"].as_str().unwrap_or(""),
+        &post_data.subreddit,
         settings.use_timestamped_directories,
-        &post_timestamp,
+        &post_data.timestamp,
         &settings.file_format,
         settings.overwrite_existing_file,
     )?;
     debug!("Target file path: {}", target_path);
+    Ok(target_path)
+}
 
+fn build_and_format_content(
+    post_data: &PostData,
+    settings: &Settings,
+    colors: &[&str],
+    url: &str,
+    target_path: &str,
+) -> Result<String> {
     debug!("Building post content...");
     let content_start = Instant::now();
     let raw_markdown = build_post_content(
-        post_data,
-        &replies_data,
+        &post_data.data,
+        &post_data.replies,
         settings,
         colors,
         url,
-        &target_path,
+        target_path,
     )?;
     debug!(
         "Content built in {:.2}ms",
@@ -297,18 +380,17 @@ fn process_single_url(
         raw_markdown
     };
 
-    debug!("Writing content to file: {}", target_path);
-    write_to_file(&target_path, &final_content)?;
+    Ok(final_content)
+}
 
+fn log_completion(post_data: &PostData, target_path: &str, start_time: Instant) {
     let elapsed = start_time.elapsed();
     info!(
         "Reddit post '{}' saved at {} (processed in {:.2}s)",
-        post_title,
+        post_data.title,
         target_path,
         elapsed.as_secs_f64()
     );
-
-    Ok(())
 }
 
 fn write_to_file(file_path: &str, content: &str) -> Result<()> {
