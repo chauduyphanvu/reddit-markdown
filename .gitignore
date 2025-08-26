@@ -3,3 +3,14 @@
 /.idea
 /python/__pycache__
 settings.json
+/obsidian-plugin/node_modules
+/rust/target/debug
+/rust/target
+/reddit_markdown_app/build
+/reddit_markdown_app/macos
+/reddit_markdown_app/linux
+/reddit_markdown_app/ios
+/reddit_markdown_app/.dart_tool
+/reddit_markdown_app/.idea
+/reddit_markdown_app/android
+/reddit_markdown_app/windows
