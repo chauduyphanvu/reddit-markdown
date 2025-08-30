@@ -61,9 +61,7 @@ class Settings:
         self.use_timestamped_directories: bool = self.raw.get(
             "use_timestamped_directories", False
         )
-        self.enable_media_downloads: bool = self.raw.get(
-            "enable_media_downloads", True
-        )
+        self.enable_media_downloads: bool = self.raw.get("enable_media_downloads", True)
 
         # Auth settings
         auth_settings = self.raw.get("auth", {})
@@ -88,6 +86,10 @@ class Settings:
 
         logger.info("Settings loaded from '%s'.", settings_file)
 
+        # Check for updates if enabled
+        if self.update_check_on_startup:
+            self.check_for_updates()
+
     def _load_json(self, path: str) -> Any:
         """
         Loads JSON from the given file path.
@@ -98,8 +100,8 @@ class Settings:
         try:
             with open(path, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except json.JSONDecodeError as e:
-            logger.error("JSON decoding error for '%s': %s", path, e)
+        except (json.JSONDecodeError, IOError, OSError) as e:
+            logger.error("Error loading JSON file '%s': %s", path, e)
             return None
 
     def check_for_updates(self) -> None:
@@ -127,9 +129,9 @@ class Settings:
 
             latest_tag = data[0].get("tag_name", "0.0.0")
             if re.match(r"^\d+\.\d+\.\d+$", latest_tag):
-                from distutils.version import LooseVersion
+                from packaging.version import Version
 
-                if LooseVersion(latest_tag) > LooseVersion(self.version):
+                if Version(latest_tag) > Version(self.version):
                     logger.info(
                         "A new version (%s) is available. You have %s. "
                         "Download it from https://github.com/chauduyphanvu/reddit-markdown.",

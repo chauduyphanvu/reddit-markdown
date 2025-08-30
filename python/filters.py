@@ -33,7 +33,7 @@ def apply_filter(
 
     # Check keywords
     for kw in filtered_keywords:
-        if kw.lower() in text.lower():
+        if text and kw.lower() in text.lower():
             logger.debug("Comment filtered due to keyword '%s'.", kw)
             return filtered_message
 
@@ -56,7 +56,7 @@ def apply_filter(
     # Check regex
     for rgx in filtered_regexes:
         pattern = re.compile(rgx)
-        if pattern.search(text):
+        if text and pattern.search(text):
             logger.debug("Comment filtered due to regex '%s'.", rgx)
             return filtered_message
 

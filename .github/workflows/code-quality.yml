@@ -1,0 +1,117 @@
+name: Code Quality
+
+on:
+  schedule:
+    # Run weekly on Sundays at 2 AM UTC
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'python/**'
+      - 'requirements.txt'
+
+concurrency:
+  group: code-quality-${{ github.ref }}
+  cancel-in-progress: true  # Cancel older code quality runs on same branch
+
+jobs:
+  quality-checks:
+    name: Code Quality Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pylint radon complexity-analysis
+    
+    - name: Run comprehensive linting with pylint
+      run: |
+        pylint python/ --output-format=json --reports=yes > pylint-report.json || true
+        pylint python/ --output-format=text --reports=yes
+      continue-on-error: true
+    
+    - name: Calculate code complexity
+      run: |
+        radon cc python/ --min B --show-complexity
+        radon mi python/ --min B
+      continue-on-error: true
+    
+    - name: Check for code duplication
+      run: |
+        # Simple duplication check using grep patterns
+        echo "Checking for potential code duplication..."
+        find python/ -name "*.py" -exec grep -l "def " {} \; | head -5 | xargs -I {} sh -c 'echo "=== {} ==="; grep -n "def " {}'
+      continue-on-error: true
+    
+    - name: Security scan with bandit
+      run: |
+        pip install bandit[toml]
+        # Generate report for artifacts
+        bandit -r python/ -f json -o bandit-report.json --severity-level medium || true
+        # Fail workflow on medium/high severity issues
+        bandit -r python/ -f txt --severity-level medium
+    
+    - name: Upload quality reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: quality-reports
+        path: |
+          pylint-report.json
+          bandit-report.json
+        retention-days: 30
+
+  dependency-audit:
+    name: Dependency Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install pip-audit
+      run: |
+        python -m pip install --upgrade pip
+        pip install pip-audit
+    
+    - name: Audit Python dependencies
+      run: |
+        pip-audit --requirement requirements.txt --format json --output pip-audit-report.json
+        pip-audit --requirement requirements.txt
+      continue-on-error: true
+    
+    - name: Set up Ruby for Ruby dependency audit
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.2'
+    
+    - name: Audit Ruby dependencies  
+      run: |
+        gem install bundler-audit
+        bundle audit check --update
+      continue-on-error: true
+    
+    - name: Upload audit reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: dependency-audit-reports
+        path: pip-audit-report.json
+        retention-days: 30

@@ -66,7 +66,9 @@ def _parse_cli_args() -> CommandLineArgs:
     return CommandLineArgs()
 
 
-def _fetch_urls(settings: Settings, cli_args: CommandLineArgs, access_token: str) -> List[str]:
+def _fetch_urls(
+    settings: Settings, cli_args: CommandLineArgs, access_token: str
+) -> List[str]:
     """
     Uses UrlFetcher to gather the final list of Reddit post URLs, then cleans them.
     """
@@ -92,7 +94,6 @@ def _process_all_urls(
             access_token=access_token,
         )
         time.sleep(1)  # Avoid rate-limiting
-
 
 
 def _process_single_url(
@@ -129,11 +130,11 @@ def _process_single_url(
     replies_data = data[1].get("data", {}).get("children", [])
 
     # Derive timestamp if needed
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     post_timestamp = ""
     if "created_utc" in post_data:
-        dt = datetime.utcfromtimestamp(post_data["created_utc"])
+        dt = datetime.fromtimestamp(post_data["created_utc"], timezone.utc)
         post_timestamp = dt.strftime("%Y-%m-%d %H:%M:%S")
 
     # Generate a filename

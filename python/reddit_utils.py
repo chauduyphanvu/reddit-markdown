@@ -5,6 +5,7 @@ import os
 import re
 import sys
 import time
+import urllib.parse
 import requests
 from typing import Any, Dict, Optional
 
@@ -45,7 +46,10 @@ def download_post_json(url: str, access_token: str = "") -> Optional[Any]:
     headers = {"User-Agent": "MyRedditScript/0.1"}
     if access_token:
         # Use the OAuth endpoint for authenticated requests
-        json_url = json_url.replace("https://www.reddit.com", "https://oauth.reddit.com")
+        json_url = json_url.replace(
+            "https://www.reddit.com", "https://oauth.reddit.com"
+        )
+        json_url = json_url.replace("https://reddit.com", "https://oauth.reddit.com")
         headers["Authorization"] = f"bearer {access_token}"
 
     try:
@@ -223,6 +227,36 @@ def markdown_to_html(md_content: str) -> str:
     except ImportError:
         logger.warning("markdown package not installed; using <pre> fallback.")
         return f"<html><body><pre>{md_content}</pre></body></html>"
+
+
+def generate_unique_media_filename(url: str, media_dir: str) -> str:
+    """
+    Generates a unique filename for media files to avoid collisions.
+
+    :param url: The media URL to extract filename from
+    :param media_dir: Directory where the media will be saved
+    :return: A unique file path within media_dir
+    """
+    # Extract filename from URL
+    parsed_url = urllib.parse.urlparse(url)
+    filename = os.path.basename(parsed_url.path)
+
+    # If no filename found, generate one
+    if not filename or "." not in filename:
+        filename = f"media_{int(time.time())}.mp4"  # Default extension for videos
+
+    file_path = os.path.join(media_dir, filename)
+
+    # Handle filename collisions
+    if os.path.isfile(file_path):
+        name, ext = os.path.splitext(filename)
+        suffix = 1
+        while os.path.isfile(os.path.join(media_dir, f"{name}_{suffix}{ext}")):
+            suffix += 1
+        filename = f"{name}_{suffix}{ext}"
+        file_path = os.path.join(media_dir, filename)
+
+    return file_path
 
 
 def download_media(url: str, file_path: str) -> bool:

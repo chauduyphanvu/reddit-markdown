@@ -49,7 +49,7 @@ def build_post_content(
     # Format timestamp
     post_timestamp = ""
     if created_utc:
-        dt = datetime.datetime.utcfromtimestamp(created_utc)
+        dt = datetime.datetime.fromtimestamp(created_utc, datetime.timezone.utc)
         post_timestamp = dt.strftime("%Y-%m-%d %H:%M:%S")
 
     # Upvotes
@@ -90,7 +90,7 @@ def build_post_content(
             post_selftext.replace("&amp;", "&")
             .replace("&lt;", "<")
             .replace("&gt;", ">")
-            .replace("&quot;", "\"")
+            .replace("&quot;", '"')
         )
         lines.append("> " + selftext_escaped.replace("\n", "\n> ") + "\n")
 
@@ -98,13 +98,19 @@ def build_post_content(
     if settings.enable_media_downloads:
         media_path = os.path.join(os.path.dirname(target_path), "media")
         if post_data.get("is_video"):
-            video_url = post_data.get("media", {}).get("reddit_video", {}).get("fallback_url")
+            video_url = (
+                post_data.get("media", {}).get("reddit_video", {}).get("fallback_url")
+            )
             if video_url:
                 utils.ensure_dir_exists(media_path)
-                video_filename = os.path.basename(urllib.parse.urlparse(video_url).path)
-                local_video_path = os.path.join(media_path, video_filename)
+                local_video_path = utils.generate_unique_media_filename(
+                    video_url, media_path
+                )
+                video_filename = os.path.basename(local_video_path)
                 if utils.download_media(video_url, local_video_path):
-                    lines.append(f"<video controls src=\"./media/{video_filename}\"></video>\n")
+                    lines.append(
+                        f'<video controls src="./media/{video_filename}"></video>\n'
+                    )
 
     # Count total replies (including deeper children)
     total_replies = len(replies_data)
@@ -114,7 +120,6 @@ def build_post_content(
 
     lines.append(f"💬 ~ {total_replies} replies\n")
     lines.append("---\n\n")
-
 
     # Process top-level replies
     for reply_obj in replies_data:
@@ -135,7 +140,7 @@ def build_post_content(
         created_utc = reply_obj.get("data", {}).get("created_utc", 0)
         top_reply_timestamp = ""
         if settings.show_timestamp and created_utc:
-            dt = datetime.datetime.utcfromtimestamp(created_utc)
+            dt = datetime.datetime.fromtimestamp(created_utc, datetime.timezone.utc)
             top_reply_timestamp = dt.strftime("%Y-%m-%d %H:%M:%S")
 
         author_field = (
@@ -212,7 +217,9 @@ def build_post_content(
 
             child_ts = ""
             if settings.show_timestamp and child_created_utc:
-                dt = datetime.datetime.utcfromtimestamp(child_created_utc)
+                dt = datetime.datetime.fromtimestamp(
+                    child_created_utc, datetime.timezone.utc
+                )
                 child_ts = dt.strftime("%Y-%m-%d %H:%M:%S")
 
             indent = "\t" * cdepth

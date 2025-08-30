@@ -19,7 +19,13 @@ class UrlFetcher:
     BASE_URL: str = "https://www.reddit.com"
     OAUTH_BASE_URL: str = "https://oauth.reddit.com"
 
-    def __init__(self, settings: Any, cli_args: Any, access_token: str = "") -> None:
+    def __init__(
+        self,
+        settings: Any,
+        cli_args: Any,
+        access_token: str = "",
+        prompt_for_input: bool = True,
+    ) -> None:
         """
         Initializes the UrlFetcher with settings and CLI arguments, then populates
         self.urls with any found from direct arguments, files, subreddits, or multireddits.
@@ -27,6 +33,7 @@ class UrlFetcher:
         :param settings: The Settings object with relevant config (e.g., multi_reddits).
         :param cli_args: The CommandLineArgs object containing user CLI input.
         :param access_token: The OAuth access token for authenticated requests.
+        :param prompt_for_input: Whether to prompt for input if no URLs are found (default: True).
         """
         self.settings = settings
         self.cli_args = cli_args
@@ -36,8 +43,8 @@ class UrlFetcher:
         # Convert CLI arguments to actual post links
         self._collect_urls()
 
-        # If no arguments provided, ask user for input
-        if not self.urls:
+        # If no arguments provided, ask user for input (unless disabled for testing)
+        if not self.urls and prompt_for_input:
             self._prompt_for_input()
 
     def _collect_urls(self) -> None:
@@ -169,7 +176,7 @@ class UrlFetcher:
         :return: A list of post URLs.
         """
         subreddit_str = subreddit_str.lstrip("/")  # remove leading slash if present
-        
+
         base = self.OAUTH_BASE_URL if self.access_token else self.BASE_URL
         url = f"{base}/{subreddit_str}"
 
