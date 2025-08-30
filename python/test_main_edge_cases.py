@@ -49,7 +49,7 @@ class TestMainEdgeCases(TempDirTestCase):
             access_token="",
         )
 
-        self.assertIsNone(result)
+        self.assertFalse(result)
         # Should not proceed to generate filename or write file
         mock_generate_filename.assert_not_called()
         mock_write_file.assert_not_called()
@@ -87,7 +87,7 @@ class TestMainEdgeCases(TempDirTestCase):
             access_token="",
         )
 
-        self.assertIsNone(result)
+        self.assertFalse(result)
         mock_generate_filename.assert_not_called()
         mock_write_file.assert_not_called()
 

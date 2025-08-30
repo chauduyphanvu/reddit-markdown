@@ -287,18 +287,19 @@ class TestApplyFilter(BaseTestCase):
         """Test regex filtering with invalid regex pattern."""
         regexes = [r"[invalid"]  # Invalid regex
 
-        # Should raise exception due to invalid regex
-        with self.assertRaises(re.error):
-            apply_filter(
-                author=self.test_author,
-                text=self.test_text,
-                upvotes=self.test_upvotes,
-                filtered_keywords=self.empty_keywords,
-                filtered_authors=self.empty_authors,
-                min_upvotes=0,
-                filtered_regexes=regexes,
-                filtered_message=self.filtered_message,
-            )
+        # Should handle invalid regex gracefully and return original text
+        result = apply_filter(
+            author=self.test_author,
+            text=self.test_text,
+            upvotes=self.test_upvotes,
+            filtered_keywords=self.empty_keywords,
+            filtered_authors=self.empty_authors,
+            min_upvotes=0,
+            filtered_regexes=regexes,
+            filtered_message=self.filtered_message,
+        )
+        # Should return original text since invalid regex is skipped
+        self.assertEqual(result, self.test_text)
 
     def test_multiple_regexes_one_matches(self):
         """Test multiple regex patterns where one matches."""

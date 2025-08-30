@@ -12,6 +12,7 @@ from test_utils import (
     MockFactory,
     TEST_URLS,
     TEST_USER_AGENTS,
+    TEST_TIMEOUTS,
 )
 
 
@@ -106,6 +107,13 @@ class TestValidUrl(BaseTestCase):
 class TestDownloadPostJson(BaseTestCase):
     """Test the download_post_json function."""
 
+    def setUp(self):
+        """Set up test fixtures and clear cache."""
+        super().setUp()
+        # Clear the global cache to ensure test isolation
+        utils._json_cache.clear()
+        utils._cache_timestamps.clear()
+
     @patch("reddit_utils.requests.get")
     def test_download_post_json_success(self, mock_get):
         """Test successful JSON download."""
@@ -120,7 +128,7 @@ class TestDownloadPostJson(BaseTestCase):
         mock_get.assert_called_once_with(
             url + ".json",
             headers={"User-Agent": TEST_USER_AGENTS["default"]},
-            timeout=10,
+            timeout=TEST_TIMEOUTS["download_post_json"],
         )
 
     @patch("reddit_utils.requests.get")
@@ -138,11 +146,13 @@ class TestDownloadPostJson(BaseTestCase):
         self.assertEqual(result, {"data": "test"})
         expected_url = "https://oauth.reddit.com/r/test/comments/123/post.json"
         expected_headers = {
-            "User-Agent": "MyRedditScript/0.1",
+            "User-Agent": TEST_USER_AGENTS["default"],
             "Authorization": "bearer test_token",
         }
         mock_get.assert_called_once_with(
-            expected_url, headers=expected_headers, timeout=10
+            expected_url,
+            headers=expected_headers,
+            timeout=TEST_TIMEOUTS["download_post_json"],
         )
 
     @patch("reddit_utils.requests.get")
@@ -159,8 +169,8 @@ class TestDownloadPostJson(BaseTestCase):
         self.assertEqual(result, {"data": "test"})
         mock_get.assert_called_once_with(
             url,  # Should not add another .json
-            headers={"User-Agent": "MyRedditScript/0.1"},
-            timeout=10,
+            headers={"User-Agent": TEST_USER_AGENTS["default"]},
+            timeout=TEST_TIMEOUTS["download_post_json"],
         )
 
     @patch("reddit_utils.requests.get")
@@ -447,7 +457,8 @@ class TestGenerateFilename(TempDirTestCase):
         )
 
         expected_path = os.path.join(self.temp_dir, "test", "test_post.md")
-        self.assertEqual(result, expected_path)
+        # Normalize paths to handle macOS symlink differences (/var vs /private/var)
+        self.assertEqual(os.path.realpath(result), os.path.realpath(expected_path))
 
     def test_generate_filename_with_timestamp_dirs(self):
         """Test filename generation with timestamped directories."""
@@ -467,7 +478,7 @@ class TestGenerateFilename(TempDirTestCase):
         expected_path = os.path.join(
             self.temp_dir, "test", "2023-01-15", "test_post.md"
         )
-        self.assertEqual(result, expected_path)
+        self.assertEqual(os.path.realpath(result), os.path.realpath(expected_path))
 
     def test_generate_filename_html_format(self):
         """Test filename generation with HTML format."""
@@ -483,7 +494,7 @@ class TestGenerateFilename(TempDirTestCase):
         )
 
         expected_path = os.path.join(self.temp_dir, "test", "test_post.html")
-        self.assertEqual(result, expected_path)
+        self.assertEqual(os.path.realpath(result), os.path.realpath(expected_path))
 
     def test_generate_filename_file_exists_no_overwrite(self):
         """Test filename generation when file exists and overwrite=False."""
@@ -507,7 +518,7 @@ class TestGenerateFilename(TempDirTestCase):
         )
 
         expected_path = os.path.join(self.temp_dir, "test", "test_post_1.md")
-        self.assertEqual(result, expected_path)
+        self.assertEqual(os.path.realpath(result), os.path.realpath(expected_path))
 
     def test_generate_filename_file_exists_with_overwrite(self):
         """Test filename generation when file exists and overwrite=True."""
@@ -531,7 +542,7 @@ class TestGenerateFilename(TempDirTestCase):
         )
 
         expected_path = os.path.join(self.temp_dir, "test", "test_post.md")
-        self.assertEqual(result, expected_path)
+        self.assertEqual(os.path.realpath(result), os.path.realpath(expected_path))
 
     def test_generate_filename_invalid_timestamp(self):
         """Test filename generation with invalid timestamp."""
@@ -560,7 +571,7 @@ class TestGenerateFilename(TempDirTestCase):
         expected_path = os.path.join(
             self.temp_dir, "test", "2023-01-01", "test_post.md"
         )
-        self.assertEqual(result, expected_path)
+        self.assertEqual(os.path.realpath(result), os.path.realpath(expected_path))
 
 
 class TestMarkdownToHtml(BaseTestCase):

@@ -202,19 +202,11 @@ class UrlFetcher:
     def _download_post_json(self, url: str) -> Optional[Any]:
         """
         Helper that tries to fetch JSON from a subreddit listing or post URL (with `.json` appended).
+        Uses the optimized download_post_json from reddit_utils for consistency and performance.
 
         :param url: The subreddit or post URL (without or with '.json').
         :return: The parsed JSON if successful, otherwise None.
         """
-        json_url = url if url.endswith(".json") else url + ".json"
-        headers = {"User-Agent": "MyRedditScript/0.1"}
-        if self.access_token:
-            headers["Authorization"] = f"bearer {self.access_token}"
+        import reddit_utils as utils
 
-        try:
-            res = requests.get(json_url, headers=headers, timeout=10)
-            res.raise_for_status()
-            return res.json()
-        except requests.exceptions.RequestException as e:
-            logger.error("Failed to download JSON data for %s: %s", url, e)
-            return None
+        return utils.download_post_json(url, self.access_token)

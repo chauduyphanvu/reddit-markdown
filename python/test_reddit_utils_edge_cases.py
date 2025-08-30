@@ -183,12 +183,11 @@ class TestRedditUtilsEdgeCases(TempDirTestCase):
             overwrite=True,
         )
 
-        # The current implementation doesn't sanitize invalid characters
-        # It just uses the last part of the URL as filename
+        # The implementation sanitizes invalid characters by replacing them with underscores
         filename = os.path.basename(result)
-        # The filename should be "file<>:|?*name.md" since it takes the last URL segment
+        # The filename should be "file______name.md" since invalid chars are sanitized
         self.assertTrue(filename.endswith(".md"))
-        self.assertIn("file<>:|?*name", filename)
+        self.assertIn("file______name", filename)
 
     def test_markdown_to_html_with_complex_markdown(self):
         """Test markdown_to_html with complex markdown content."""

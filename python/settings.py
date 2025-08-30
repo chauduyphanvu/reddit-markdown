@@ -12,6 +12,53 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
+def _load_env_file(env_path: str) -> None:
+    """
+    Simple .env file parser that doesn't require external dependencies.
+    Loads key=value pairs from .env file into os.environ.
+    """
+    if not os.path.isfile(env_path):
+        return
+
+    try:
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line_num, line in enumerate(f, 1):
+                line = line.strip()
+
+                # Skip empty lines and comments
+                if not line or line.startswith("#"):
+                    continue
+
+                # Parse key=value pairs
+                if "=" in line:
+                    key, value = line.split("=", 1)  # Split on first = only
+                    key = key.strip()
+                    value = value.strip()
+
+                    # Remove quotes if present
+                    if (value.startswith('"') and value.endswith('"')) or (
+                        value.startswith("'") and value.endswith("'")
+                    ):
+                        value = value[1:-1]
+
+                    # .env file takes precedence over system environment variables
+                    if key:
+                        os.environ[key] = value
+
+        logger.info(".env file loaded successfully (built-in parser)")
+
+    except Exception as e:
+        logger.warning("Failed to load .env file: %s", e)
+
+
+# Try to load .env files using built-in parser (no external dependencies required)
+_env_file_paths = [".env", "../.env"]
+for env_path in _env_file_paths:
+    if os.path.isfile(env_path):
+        _load_env_file(env_path)
+        break
+
+
 class Settings:
     """
     Manages loading and validation of settings from a JSON file (by default `settings.json`).
@@ -63,13 +110,42 @@ class Settings:
         )
         self.enable_media_downloads: bool = self.raw.get("enable_media_downloads", True)
 
-        # Auth settings
+        # Auth settings - credentials now read from environment variables for security
         auth_settings = self.raw.get("auth", {})
         self.login_on_startup: bool = auth_settings.get("login_on_startup", False)
-        self.client_id: str = auth_settings.get("client_id", "")
-        self.client_secret: str = auth_settings.get("client_secret", "")
-        self.username: str = auth_settings.get("username", "")
-        self.password: str = auth_settings.get("password", "")
+
+        # Read credentials from .env file (loaded into environment)
+        self.client_id: str = os.environ.get("REDDIT_CLIENT_ID", "")
+        self.client_secret: str = os.environ.get("REDDIT_CLIENT_SECRET", "")
+        self.username: str = os.environ.get("REDDIT_USERNAME", "")
+        self.password: str = os.environ.get("REDDIT_PASSWORD", "")
+
+        # Warn if credentials are not set or still using placeholders
+        placeholder_patterns = [
+            "your_actual_client_id_here",
+            "your_id",
+            "83eZtNGTIaaJdIyhD3-4ow",
+            "5ymZetfCvPgF7OXZlj2dtQ",
+        ]
+
+        if self.login_on_startup and (
+            not self.client_id
+            or not self.client_secret
+            or self.client_id in placeholder_patterns
+            or self.client_secret.startswith("d3yMniPx")
+            or self.client_secret.startswith("YWr9wmbHD")
+        ):
+            logger.warning(
+                "Login enabled but valid credentials not found in .env file."
+            )
+            logger.warning("Steps to fix:")
+            logger.warning(
+                "1. Create a Reddit app at https://www.reddit.com/prefs/apps/"
+            )
+            logger.warning(
+                "2. Replace placeholder values in .env file with real credentials"
+            )
+            logger.warning("3. Restart the application")
 
         # Filtering options
         self.filtered_message: str = self.raw.get("filtered_message", "Filtered")
@@ -79,6 +155,16 @@ class Settings:
         )
         self.filtered_authors = self.raw.get("filters", {}).get("authors", [])
         self.filtered_regexes = self.raw.get("filters", {}).get("regexes", [])
+
+        # Performance settings
+        performance_settings = self.raw.get("performance", {})
+        self.cache_ttl_seconds: int = performance_settings.get("cache_ttl_seconds", 300)
+        self.max_cache_entries: int = performance_settings.get(
+            "max_cache_entries", 1000
+        )
+        self.rate_limit_requests_per_minute: int = performance_settings.get(
+            "rate_limit_requests_per_minute", 30
+        )
 
         # Additional settings
         self.default_save_location: str = self.raw.get("default_save_location", "")

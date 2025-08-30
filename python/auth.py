@@ -12,7 +12,7 @@ def get_access_token(client_id: str, client_secret: str) -> str:
     data = {
         "grant_type": "client_credentials",
     }
-    headers = {"User-Agent": "MyRedditScript/0.1"}
+    headers = {"User-Agent": "RedditMarkdownConverter/1.0 (Safe Download Bot)"}
 
     try:
         res = requests.post(

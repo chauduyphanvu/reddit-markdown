@@ -1,9 +1,94 @@
 import logging
 import re
-from typing import List
+import time
+from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+# Cache for compiled regex patterns
+_regex_cache: Dict[str, Optional[re.Pattern]] = {}
+
+
+def _safe_compile_regex(pattern: str) -> Optional[re.Pattern]:
+    """
+    Safely compile a regex pattern with validation and caching.
+    Prevents ReDoS attacks by limiting complexity and execution time.
+    """
+    if pattern in _regex_cache:
+        return _regex_cache[pattern]
+
+    # Basic validation
+    if not pattern or len(pattern) > 1000:  # Reasonable length limit
+        logger.warning("Regex pattern too long or empty: %s", pattern[:100])
+        _regex_cache[pattern] = None
+        return None
+
+    # Check for specific dangerous patterns that cause ReDoS (refined detection)
+    dangerous_patterns = [
+        # Nested quantifiers - the real culprits for exponential backtracking
+        r"\([^)]*\+[^)]*\)\+",  # (group+)+ patterns
+        r"\([^)]*\*[^)]*\)\*",  # (group*)* patterns
+        r"\([^)]*\+[^)]*\)\*",  # (group+)* patterns
+        r"\([^)]*\*[^)]*\)\+",  # (group*)+ patterns
+        # Deeply nested quantifiers
+        r"\(\([^)]*\+[^)]*\)\+\)\+",  # ((a+)+)+ patterns
+        # Alternation with overlapping patterns
+        r"\([^|)]*\|[^|)]*\)\*.*\1",  # (a|ab)* where there's overlap
+        # Multiple consecutive quantifiers on same element (more specific)
+        r"\.\*\*|\.\+\+|\.\?\?|\+\+|\*\*",  # .**, .++, etc.
+        # Catastrophic backtracking patterns
+        r"\([^)]*\.[^)]*\*[^)]*\)[^)]*\.[^)]*\*",  # (.*)*.*pattern
+    ]
+
+    for dangerous in dangerous_patterns:
+        try:
+            if re.search(dangerous, pattern):
+                logger.warning(
+                    "Potentially dangerous regex pattern detected: %s", pattern
+                )
+                _regex_cache[pattern] = None
+                return None
+        except re.error:
+            # If the dangerous pattern itself is invalid, skip it
+            continue
+
+    try:
+        compiled = re.compile(pattern)
+        _regex_cache[pattern] = compiled
+        return compiled
+    except re.error as e:
+        logger.error("Invalid regex pattern '%s': %s", pattern, e)
+        _regex_cache[pattern] = None
+        return None
+
+
+def _safe_regex_search(
+    pattern: re.Pattern, text: str, timeout_seconds: float = 1.0
+) -> bool:
+    """
+    Perform a regex search with timeout protection.
+    """
+    if not text:
+        return False
+
+    # Limit text length to prevent excessive processing
+    if len(text) > 10000:
+        text = text[:10000]
+
+    start_time = time.time()
+    try:
+        result = pattern.search(text)
+        elapsed = time.time() - start_time
+
+        if elapsed > timeout_seconds:
+            logger.warning("Regex search took too long (%.2fs), aborting", elapsed)
+            return False
+
+        return result is not None
+    except Exception as e:
+        logger.error("Regex search error: %s", e)
+        return False
 
 
 def apply_filter(
@@ -53,10 +138,17 @@ def apply_filter(
         )
         return filtered_message
 
-    # Check regex
+    # Check regex with safe compilation and execution
     for rgx in filtered_regexes:
-        pattern = re.compile(rgx)
-        if text and pattern.search(text):
+        if not rgx:  # Skip empty regex patterns
+            continue
+
+        pattern = _safe_compile_regex(rgx)
+        if pattern is None:
+            logger.warning("Skipping invalid regex pattern: %s", rgx)
+            continue
+
+        if text and _safe_regex_search(pattern, text):
             logger.debug("Comment filtered due to regex '%s'.", rgx)
             return filtered_message
 

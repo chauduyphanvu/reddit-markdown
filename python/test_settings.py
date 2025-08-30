@@ -67,6 +67,16 @@ class TestSettings(unittest.TestCase):
 
     @patch("builtins.open", mock_open())
     @patch("os.path.isfile", return_value=True)
+    @patch.dict(
+        os.environ,
+        {
+            "REDDIT_CLIENT_ID": "test_client_id",
+            "REDDIT_CLIENT_SECRET": "test_client_secret",
+            "REDDIT_USERNAME": "test_user",
+            "REDDIT_PASSWORD": "test_pass",
+        },
+        clear=False,
+    )
     def test_settings_loads_all_properties(self, mock_isfile):
         """Test Settings loads all properties from complete JSON."""
         with patch(
@@ -138,6 +148,16 @@ class TestSettings(unittest.TestCase):
 
     @patch("builtins.open", mock_open())
     @patch("os.path.isfile", return_value=True)
+    @patch.dict(
+        os.environ,
+        {
+            "REDDIT_CLIENT_ID": "",
+            "REDDIT_CLIENT_SECRET": "",
+            "REDDIT_USERNAME": "",
+            "REDDIT_PASSWORD": "",
+        },
+        clear=False,
+    )
     def test_settings_default_values_when_missing(self, mock_isfile):
         """Test Settings applies default values when properties are missing."""
         minimal_settings = {"version": "1.0.0"}
@@ -179,14 +199,23 @@ class TestSettings(unittest.TestCase):
 
     @patch("builtins.open", mock_open())
     @patch("os.path.isfile", return_value=True)
+    @patch.dict(
+        os.environ,
+        {
+            "REDDIT_CLIENT_ID": "test_id",
+            "REDDIT_CLIENT_SECRET": "",
+            "REDDIT_USERNAME": "",
+            "REDDIT_PASSWORD": "",
+        },
+        clear=False,
+    )
     def test_settings_partial_auth_section(self, mock_isfile):
         """Test Settings handles partial auth section."""
         partial_auth_settings = {
             "version": "1.0.0",
             "auth": {
                 "login_on_startup": True,
-                "client_id": "test_id",
-                # Missing client_secret, username, password
+                # Auth credentials now come from environment variables
             },
         }
         with patch(

@@ -90,6 +90,10 @@ class MockFactory:
             "filtered_regexes": [],
             "default_save_location": "",
             "multi_reddits": {},
+            "cache_ttl_seconds": 300,
+            "max_cache_entries": 1000,
+            "rate_limit_delay": 1.0,
+            "timeout": 10,
         }
 
         # Apply overrides
@@ -289,7 +293,7 @@ TEST_URLS = {
 }
 
 TEST_USER_AGENTS = {
-    "default": "MyRedditScript/0.1",
+    "default": "RedditMarkdownConverter/1.0 (Safe Download Bot)",
 }
 
 TEST_TIMESTAMPS = {
@@ -297,4 +301,9 @@ TEST_TIMESTAMPS = {
     "comment_time": 1640995800,  # 2022-01-01 00:10:00
     "formatted_post_time": "2022-01-01 00:00:00",
     "formatted_comment_time": "2022-01-01 00:10:00",
+}
+
+TEST_TIMEOUTS = {
+    "download_post_json": 30,
+    "download_media": 10,
 }

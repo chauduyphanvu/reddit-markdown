@@ -34,6 +34,12 @@ class TestUrlFetcher(unittest.TestCase):
         self.mock_settings = MockSettings()
         self.access_token = "test_token"
 
+        # Clear caches to ensure test isolation
+        import reddit_utils
+
+        reddit_utils._json_cache.clear()
+        reddit_utils._cache_timestamps.clear()
+
         # Disable logging during tests
         logging.disable(logging.CRITICAL)
 
@@ -315,12 +321,12 @@ class TestUrlFetcher(unittest.TestCase):
 
         self.assertEqual(result, {"data": "test"})
         mock_get.assert_called_with(
-            "https://reddit.com/r/test.json",
+            "https://oauth.reddit.com/r/test.json",
             headers={
-                "User-Agent": "MyRedditScript/0.1",
+                "User-Agent": "RedditMarkdownConverter/1.0 (Safe Download Bot)",
                 "Authorization": "bearer test_token",
             },
-            timeout=10,
+            timeout=30,
         )
 
     @patch("requests.get")
@@ -341,8 +347,8 @@ class TestUrlFetcher(unittest.TestCase):
         self.assertEqual(result, {"data": "test"})
         mock_get.assert_called_with(
             "https://reddit.com/r/test.json",
-            headers={"User-Agent": "MyRedditScript/0.1"},
-            timeout=10,
+            headers={"User-Agent": "RedditMarkdownConverter/1.0 (Safe Download Bot)"},
+            timeout=30,
         )
 
     @patch("requests.get")
@@ -362,8 +368,8 @@ class TestUrlFetcher(unittest.TestCase):
         self.assertEqual(result, {"data": "test"})
         mock_get.assert_called_with(
             "https://reddit.com/r/test.json",
-            headers={"User-Agent": "MyRedditScript/0.1"},
-            timeout=10,
+            headers={"User-Agent": "RedditMarkdownConverter/1.0 (Safe Download Bot)"},
+            timeout=30,
         )
 
     @patch("requests.get")

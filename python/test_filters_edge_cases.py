@@ -17,6 +17,10 @@ class TestFiltersEdgeCases(BaseTestCase):
         """Set up test fixtures."""
         super().setUp()
         self.default_filtered_message = "[FILTERED]"
+        # Clear regex cache to ensure test isolation
+        from filters import _regex_cache
+
+        _regex_cache.clear()
 
     def test_apply_filter_with_malformed_regex(self):
         """Test apply_filter with invalid regex pattern."""
@@ -28,17 +32,18 @@ class TestFiltersEdgeCases(BaseTestCase):
         invalid_regex = "["  # Unclosed bracket
 
         # Should handle regex compilation error gracefully
-        with self.assertRaises(re.error):
-            apply_filter(
-                author=author,
-                text=text,
-                upvotes=upvotes,
-                filtered_keywords=[],
-                filtered_authors=[],
-                min_upvotes=0,
-                filtered_regexes=[invalid_regex],
-                filtered_message=self.default_filtered_message,
-            )
+        result = apply_filter(
+            author=author,
+            text=text,
+            upvotes=upvotes,
+            filtered_keywords=[],
+            filtered_authors=[],
+            min_upvotes=0,
+            filtered_regexes=[invalid_regex],
+            filtered_message=self.default_filtered_message,
+        )
+        # Should return original text since invalid regex is skipped
+        self.assertEqual(result, text)
 
     def test_apply_filter_with_complex_regex_patterns(self):
         """Test apply_filter with complex regex patterns."""
@@ -79,7 +84,7 @@ class TestFiltersEdgeCases(BaseTestCase):
 
         test_cases = [
             (r"[^\x00-\x7F]", True),  # Non-ASCII characters
-            (r"\p{Emoji}", True),  # Emoji pattern (if supported)
+            (r"[🚀🎉]", True),  # Emoji characters (specific)
             (r"[áéíóúñ]", True),  # Spanish accented characters
             (r"[一-龯]", False),  # Chinese characters (not present)
         ]

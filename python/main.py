@@ -52,10 +52,15 @@ def main() -> None:
 def _load_settings() -> Settings:
     """
     Loads the Settings object from the JSON file and optionally checks for updates.
+    Also configures performance settings in reddit_utils.
     """
     settings = Settings()
     if settings.update_check_on_startup:
         settings.check_for_updates()
+
+    # Configure performance settings in reddit_utils
+    utils.configure_performance(settings)
+
     return settings
 
 
@@ -81,10 +86,14 @@ def _process_all_urls(
 ) -> None:
     """
     Iterates over the list of URLs and processes each (download, render, and save).
+    Enhanced with progress tracking and failure statistics.
     """
     colors = ["🟩", "🟨", "🟧", "🟦", "🟪", "🟥", "🟫", "⬛️", "⬜️"]
+    successful = 0
+    failed = 0
+
     for i, url in enumerate(all_urls, 1):
-        _process_single_url(
+        success = _process_single_url(
             index=i,
             url=url,
             total=len(all_urls),
@@ -93,7 +102,27 @@ def _process_all_urls(
             colors=colors,
             access_token=access_token,
         )
-        time.sleep(1)  # Avoid rate-limiting
+
+        if success:
+            successful += 1
+        else:
+            failed += 1
+
+        # Rate limiting is now handled by the RateLimiter class in reddit_utils
+        time.sleep(0.1)  # Small delay to be respectful
+
+    # Report final statistics
+    logger.info(
+        "Processing complete! Successful: %d, Failed: %d, Total: %d",
+        successful,
+        failed,
+        len(all_urls),
+    )
+
+    if failed > 0:
+        logger.warning("Some posts failed to process. Check the log above for details.")
+    else:
+        logger.info("All posts processed successfully!")
 
 
 def _process_single_url(
@@ -105,70 +134,124 @@ def _process_single_url(
     base_save_dir: str,
     colors: List[str],
     access_token: str,
-) -> None:
+) -> bool:
     """
     Handles the downloading of JSON data for a single Reddit URL,
     rendering post content, and saving it to the specified location.
+
+    Enhanced with better error handling and graceful degradation.
+
+    Returns:
+        bool: True if processing succeeded, False otherwise.
     """
-    if not utils.valid_url(url):
-        logger.warning("Invalid post URL '%s'. Skipping...", url)
-        return
+    try:
+        if not utils.valid_url(url):
+            logger.warning("Invalid post URL '%s'. Skipping...", url)
+            return False
 
-    logger.info("Processing post %d of %d: %s", index, total, url)
-    data = utils.download_post_json(url, access_token)
-    if not data or len(data) < 2:
-        logger.error("Could not fetch or parse post data for %s. Skipping...", url)
-        return
+        logger.info("Processing post %d of %d: %s", index, total, url)
 
-    post_info = data[0].get("data", {}).get("children", [])
-    if not post_info:
-        logger.error("No post info found for %s. Skipping...", url)
-        return
-    post_data = post_info[0].get("data", {})
+        # Download with enhanced error handling
+        data = utils.download_post_json(url, access_token)
+        if not data:
+            logger.error("Could not fetch post data for %s. Skipping...", url)
+            return False
 
-    # The replies (index 1)
-    replies_data = data[1].get("data", {}).get("children", [])
+        # Validate data structure with better error messages
+        if not isinstance(data, list) or len(data) < 2:
+            logger.error(
+                "Invalid data structure from %s (expected list with 2+ items). Skipping...",
+                url,
+            )
+            return False
 
-    # Derive timestamp if needed
-    from datetime import datetime, timezone
+        post_info = (
+            data[0].get("data", {}).get("children", [])
+            if isinstance(data[0], dict)
+            else []
+        )
+        if not post_info:
+            logger.error("No post info found for %s. Skipping...", url)
+            return False
 
-    post_timestamp = ""
-    if "created_utc" in post_data:
-        dt = datetime.fromtimestamp(post_data["created_utc"], timezone.utc)
-        post_timestamp = dt.strftime("%Y-%m-%d %H:%M:%S")
+        if not isinstance(post_info[0], dict):
+            logger.error("Invalid post info structure for %s. Skipping...", url)
+            return False
 
-    # Generate a filename
-    target_path = utils.generate_filename(
-        base_dir=base_save_dir,
-        url=url,
-        subreddit=post_data.get("subreddit_name_prefixed", ""),
-        use_timestamped_dirs=settings.use_timestamped_directories,
-        post_timestamp=post_timestamp,
-        file_format=settings.file_format,
-        overwrite=settings.overwrite_existing_file,
-    )
+        post_data = post_info[0].get("data", {})
 
-    # Build the content in Markdown
-    raw_markdown = build_post_content(
-        post_data=post_data,
-        replies_data=replies_data,
-        settings=settings,
-        colors=colors,
-        url=url,
-        target_path=target_path,
-    )
+        # The replies (index 1) - with safe access
+        replies_data = []
+        if isinstance(data[1], dict):
+            replies_data = data[1].get("data", {}).get("children", [])
 
-    # Convert to HTML if required
-    if settings.file_format.lower() == "html":
-        final_content = utils.markdown_to_html(raw_markdown)
-    else:
-        final_content = raw_markdown
+        # Derive timestamp if needed
+        from datetime import datetime, timezone
 
-    logger.info("Saving post to %s", target_path)
-    _write_to_file(Path(target_path), final_content)
+        post_timestamp = ""
+        if "created_utc" in post_data and isinstance(
+            post_data["created_utc"], (int, float)
+        ):
+            try:
+                dt = datetime.fromtimestamp(post_data["created_utc"], timezone.utc)
+                post_timestamp = dt.strftime("%Y-%m-%d %H:%M:%S")
+            except (ValueError, OSError) as e:
+                logger.warning("Invalid timestamp for %s: %s", url, e)
 
-    logger.info("Reddit post saved at %s.", target_path)
-    logger.info("---")
+        # Generate a filename with error handling
+        try:
+            target_path = utils.generate_filename(
+                base_dir=base_save_dir,
+                url=url,
+                subreddit=post_data.get("subreddit_name_prefixed", ""),
+                use_timestamped_dirs=settings.use_timestamped_directories,
+                post_timestamp=post_timestamp,
+                file_format=settings.file_format,
+                overwrite=settings.overwrite_existing_file,
+            )
+        except Exception as e:
+            logger.error("Failed to generate filename for %s: %s", url, e)
+            return False
+
+        # Build the content in Markdown with error handling
+        try:
+            raw_markdown = build_post_content(
+                post_data=post_data,
+                replies_data=replies_data,
+                settings=settings,
+                colors=colors,
+                url=url,
+                target_path=target_path,
+            )
+        except Exception as e:
+            logger.error("Failed to build post content for %s: %s", url, e)
+            return False
+
+        # Convert to HTML if required
+        try:
+            if settings.file_format.lower() == "html":
+                final_content = utils.markdown_to_html(raw_markdown)
+            else:
+                final_content = raw_markdown
+        except Exception as e:
+            logger.error("Failed to convert content format for %s: %s", url, e)
+            return False
+
+        # Save the file with error handling
+        try:
+            logger.info("Saving post to %s", target_path)
+            _write_to_file(Path(target_path), final_content)
+            logger.info("Reddit post saved at %s.", target_path)
+            logger.info("---")
+            return True
+
+        except Exception as e:
+            logger.error("Failed to save post %s: %s", url, e)
+            return False
+
+    except Exception as e:
+        logger.error("Unexpected error processing %s: %s", url, e)
+        return False
 
 
 def _write_to_file(file_path: Path, content: str) -> None:

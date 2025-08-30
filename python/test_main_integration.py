@@ -248,7 +248,7 @@ class TestMainIntegration(unittest.TestCase):
 
         # Should sleep between requests
         self.assertEqual(mock_sleep.call_count, 3)
-        mock_sleep.assert_called_with(1)
+        mock_sleep.assert_called_with(0.1)
 
     @patch("main.utils.valid_url")
     def test_process_single_url_invalid_url(self, mock_valid_url):
@@ -267,7 +267,7 @@ class TestMainIntegration(unittest.TestCase):
             access_token="",
         )
 
-        self.assertIsNone(result)
+        self.assertFalse(result)
 
     @patch("main._write_to_file")
     @patch("main.build_post_content")

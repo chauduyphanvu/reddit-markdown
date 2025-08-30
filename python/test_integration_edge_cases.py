@@ -360,7 +360,7 @@ class TestIntegrationEdgeCases(TempDirTestCase):
 
             # Should call sleep between each URL (rate limiting)
             self.assertEqual(mock_sleep.call_count, 3)
-            mock_sleep.assert_called_with(1)
+            mock_sleep.assert_called_with(0.1)
 
             # Should process all URLs
             self.assertEqual(mock_process.call_count, 3)

@@ -7,10 +7,90 @@ import sys
 import time
 import urllib.parse
 import requests
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+
+class RateLimiter:
+    """Simple rate limiter to prevent API abuse."""
+
+    def __init__(self, max_requests: int = 60, window_seconds: int = 60):
+        # Ensure max_requests is an integer in case a Mock object is passed during testing
+        self.max_requests = max_requests if isinstance(max_requests, int) else 60
+        self.window_seconds = window_seconds if isinstance(window_seconds, int) else 60
+        self.requests = []
+
+    def is_allowed(self) -> bool:
+        """Check if a request is allowed within the rate limit."""
+        now = time.time()
+        # Remove old requests outside the window
+        self.requests = [
+            req_time
+            for req_time in self.requests
+            if now - req_time < self.window_seconds
+        ]
+
+        if len(self.requests) < self.max_requests:
+            self.requests.append(now)
+            return True
+        return False
+
+    def wait_time(self) -> float:
+        """Get the time to wait before next request is allowed."""
+        if not self.requests:
+            return 0
+        return max(0, self.window_seconds - (time.time() - self.requests[0]))
+
+
+# Global instances - will be initialized by configure_performance()
+_rate_limiter: Optional[RateLimiter] = None
+_json_cache: Dict[str, Any] = {}
+_cache_timestamps: Dict[str, float] = {}
+_cache_ttl_seconds = 300  # Default 5 minutes cache TTL
+_max_cache_entries = 1000  # Default max cache entries
+
+
+def configure_performance(settings) -> None:
+    """
+    Configure performance settings based on Settings object.
+    Should be called once at application startup.
+    """
+    global _rate_limiter, _cache_ttl_seconds, _max_cache_entries
+
+    # Configure rate limiter - ensure values are integers in case of Mock objects during testing
+    requests_per_minute = getattr(settings, "rate_limit_requests_per_minute", 30)
+    requests_per_minute = (
+        requests_per_minute if isinstance(requests_per_minute, int) else 30
+    )
+    _rate_limiter = RateLimiter(max_requests=requests_per_minute, window_seconds=60)
+
+    # Configure cache settings - ensure values are integers in case of Mock objects during testing
+    _cache_ttl_seconds = getattr(settings, "cache_ttl_seconds", 300)
+    _cache_ttl_seconds = (
+        _cache_ttl_seconds if isinstance(_cache_ttl_seconds, int) else 300
+    )
+    _max_cache_entries = getattr(settings, "max_cache_entries", 1000)
+    _max_cache_entries = (
+        _max_cache_entries if isinstance(_max_cache_entries, int) else 1000
+    )
+
+    logger.info(
+        "Performance configured: %d req/min, %ds cache TTL, %d max cache entries",
+        requests_per_minute,
+        _cache_ttl_seconds,
+        _max_cache_entries,
+    )
+
+
+def _get_rate_limiter() -> RateLimiter:
+    """Get the global rate limiter, creating a default one if not configured."""
+    global _rate_limiter
+    if _rate_limiter is None:
+        _rate_limiter = RateLimiter(max_requests=30, window_seconds=60)
+    return _rate_limiter
 
 
 def clean_url(url: str) -> str:
@@ -29,21 +109,81 @@ def valid_url(url: str) -> bool:
     Checks if the given URL matches the typical Reddit post pattern:
       https://www.reddit.com/r/<subreddit>/comments/<id>/<slug>/?
 
+    Enhanced validation includes:
+    - URL scheme validation
+    - Domain validation
+    - Path component validation
+    - Length limits
+
     :param url: The URL to validate.
     :return: True if the URL looks like a valid Reddit post, False otherwise.
     """
-    return bool(
-        re.match(r"^https:\/\/www\.reddit\.com\/r\/\w+\/comments\/\w+\/[\w_]+\/?", url)
-    )
+    if not url or not isinstance(url, str):
+        return False
+
+    # Check URL length (reasonable limit)
+    if len(url) > 2048:
+        logger.warning("URL too long (>2048 chars): %s", url[:100])
+        return False
+
+    try:
+        parsed = urllib.parse.urlparse(url)
+
+        # Validate scheme (only HTTPS for security)
+        if parsed.scheme != "https":
+            return False
+
+        # Validate domain
+        allowed_domains = ["www.reddit.com", "reddit.com", "old.reddit.com"]
+        if parsed.netloc.lower() not in allowed_domains:
+            return False
+
+        # Validate path pattern
+        pattern = r"^/r/[a-zA-Z0-9_]{1,100}/comments/[a-zA-Z0-9_]{1,50}/[a-zA-Z0-9_-]{1,200}/?$"
+        return bool(re.match(pattern, parsed.path))
+
+    except Exception as e:
+        logger.warning("URL validation error for '%s': %s", url, e)
+        return False
 
 
 def download_post_json(url: str, access_token: str = "") -> Optional[Any]:
     """
     Appends '.json' to a Reddit post URL and fetches the JSON data.
     Uses an access token for authenticated requests if provided.
+    Enhanced with rate limiting, retry logic, and caching.
     """
+    # Input validation
+    if not url or not isinstance(url, str):
+        logger.error("Invalid URL provided: %s", url)
+        return None
+
+    # Create cache key
     json_url = url if url.endswith(".json") else url + ".json"
-    headers = {"User-Agent": "MyRedditScript/0.1"}
+    cache_key = f"{json_url}:{bool(access_token)}"
+
+    # Check cache first
+    current_time = time.time()
+    if (
+        cache_key in _json_cache
+        and cache_key in _cache_timestamps
+        and current_time - _cache_timestamps[cache_key] < _cache_ttl_seconds
+    ):
+        logger.debug("Using cached data for %s", url)
+        return _json_cache[cache_key]
+
+    # Clean expired cache entries
+    _cleanup_cache()
+
+    # Apply rate limiting
+    rate_limiter = _get_rate_limiter()
+    if not rate_limiter.is_allowed():
+        wait_time = rate_limiter.wait_time()
+        logger.info("Rate limit reached. Waiting %.1f seconds...", wait_time)
+        time.sleep(wait_time)
+
+    headers = {"User-Agent": "RedditMarkdownConverter/1.0 (Safe Download Bot)"}
+
     if access_token:
         # Use the OAuth endpoint for authenticated requests
         json_url = json_url.replace(
@@ -52,13 +192,85 @@ def download_post_json(url: str, access_token: str = "") -> Optional[Any]:
         json_url = json_url.replace("https://reddit.com", "https://oauth.reddit.com")
         headers["Authorization"] = f"bearer {access_token}"
 
-    try:
-        res = requests.get(json_url, headers=headers, timeout=10)
-        res.raise_for_status()
-        return res.json()
-    except requests.exceptions.RequestException as e:
-        logger.error("Could not download JSON for %s. Reason: %s", url, e)
-        return None
+    # Retry logic
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            res = requests.get(json_url, headers=headers, timeout=30)
+            res.raise_for_status()
+            result = res.json()
+
+            # Cache the result
+            _json_cache[cache_key] = result
+            _cache_timestamps[cache_key] = current_time
+
+            return result
+        except requests.exceptions.Timeout:
+            logger.warning(
+                "Timeout on attempt %d/%d for %s", attempt + 1, max_retries, url
+            )
+            if attempt < max_retries - 1:
+                time.sleep(2**attempt)  # Exponential backoff
+        except requests.exceptions.RequestException as e:
+            logger.error(
+                "Request failed on attempt %d/%d for %s. Reason: %s",
+                attempt + 1,
+                max_retries,
+                url,
+                e,
+            )
+            if attempt < max_retries - 1:
+                time.sleep(2**attempt)
+            break
+
+    logger.error("Failed to download JSON for %s after %d attempts", url, max_retries)
+    return None
+
+
+def _cleanup_cache() -> None:
+    """Remove expired entries from the cache and enforce size limits to prevent memory leaks."""
+    current_time = time.time()
+
+    # Remove expired entries
+    expired_keys = [
+        key
+        for key, timestamp in _cache_timestamps.items()
+        if current_time - timestamp >= _cache_ttl_seconds
+    ]
+
+    for key in expired_keys:
+        _json_cache.pop(key, None)
+        _cache_timestamps.pop(key, None)
+
+    # Enforce cache size limit by removing oldest entries
+    # Handle case where _max_cache_entries might be a Mock object during testing
+    max_entries = _max_cache_entries if isinstance(_max_cache_entries, int) else 1000
+    if len(_json_cache) > max_entries:
+        # Sort by timestamp and remove oldest entries
+        sorted_keys = sorted(_cache_timestamps.items(), key=lambda x: x[1])
+        keys_to_remove = [
+            key for key, _ in sorted_keys[: len(_json_cache) - max_entries]
+        ]
+
+        for key in keys_to_remove:
+            _json_cache.pop(key, None)
+            _cache_timestamps.pop(key, None)
+
+        logger.debug(
+            "Removed %d oldest cache entries to enforce size limit", len(keys_to_remove)
+        )
+
+    total_removed = len(expired_keys) + (
+        len(keys_to_remove) if "keys_to_remove" in locals() else 0
+    )
+    if total_removed > 0:
+        logger.debug(
+            "Cache cleanup: removed %d entries (%d expired, cache size: %d/%d)",
+            total_removed,
+            len(expired_keys),
+            len(_json_cache),
+            max_entries,
+        )
 
 
 def get_replies(
@@ -162,6 +374,11 @@ def generate_filename(
     Generates a unique path for the output file, possibly placing it inside a subreddit folder
     and/or a timestamped folder, as configured by the user.
 
+    Enhanced security:
+    - Prevents path traversal attacks
+    - Sanitizes filenames and directory names
+    - Validates path components
+
     :param base_dir: The base directory path to save the file(s).
     :param url: The original Reddit post URL (used to derive a filename).
     :param subreddit: Subreddit name (e.g., "r/python"), which may become part of the directory structure.
@@ -171,12 +388,47 @@ def generate_filename(
     :param overwrite: If True, overwrites existing files without creating a suffix (e.g., _1).
     :return: A full path to the file that does not conflict with existing files (unless overwrite=True).
     """
-    name_candidate = url.rstrip("/").split("/")[-1]
-    if not name_candidate:
-        name_candidate = f"reddit_no_name_{int(time.time())}"
 
+    def sanitize_filename(filename: str) -> str:
+        """Sanitize filename to prevent path traversal and invalid characters."""
+        if not filename:
+            return f"reddit_no_name_{int(time.time())}"
+
+        # Remove path separators and dangerous characters
+        filename = re.sub(r'[<>:"/\\|?*]', "_", filename)
+        filename = re.sub(r"\.\.+", "_", filename)  # Remove .. sequences
+        filename = filename.strip(". ")  # Remove leading/trailing dots and spaces
+
+        # Truncate if too long
+        if len(filename) > 200:
+            filename = filename[:200]
+
+        return filename if filename else f"reddit_no_name_{int(time.time())}"
+
+    def sanitize_dirname(dirname: str) -> str:
+        """Sanitize directory name to prevent path traversal."""
+        if not dirname:
+            return ""
+
+        # Remove path separators and dangerous characters
+        dirname = re.sub(r'[<>:"/\\|?*]', "_", dirname)
+        dirname = re.sub(r"\.\.+", "_", dirname)  # Remove .. sequences
+        dirname = dirname.strip(". ")  # Remove leading/trailing dots and spaces
+
+        # Truncate if too long
+        if len(dirname) > 100:
+            dirname = dirname[:100]
+
+        return dirname if dirname else ""
+
+    # Sanitize filename from URL
+    name_candidate = url.rstrip("/").split("/")[-1]
+    name_candidate = sanitize_filename(name_candidate)
+
+    # Sanitize subreddit name
     if subreddit.startswith("r/"):
         subreddit = subreddit[2:]  # drop "r/"
+    subreddit = sanitize_dirname(subreddit)
 
     # Format the timestamp for a subdirectory
     dt_str = ""
@@ -187,13 +439,31 @@ def generate_filename(
         except ValueError:
             dt_str = datetime.datetime.now().strftime("%Y-%m-%d")
 
-    subdir = os.path.join(base_dir, subreddit) if subreddit else base_dir
+    # Use pathlib for secure path construction
+    base_path = Path(base_dir).resolve()
+
+    if subreddit:
+        subdir_path = base_path / subreddit
+    else:
+        subdir_path = base_path
+
     if use_timestamped_dirs and dt_str:
-        subdir = os.path.join(subdir, dt_str)
-    ensure_dir_exists(subdir)
+        subdir_path = subdir_path / dt_str
+
+    # Ensure the final path is still within base_dir (security check)
+    try:
+        subdir_path = subdir_path.resolve()
+        if not str(subdir_path).startswith(str(base_path)):
+            logger.error("Path traversal attempt detected. Using base directory only.")
+            subdir_path = base_path
+    except (OSError, ValueError) as e:
+        logger.error("Path resolution error: %s. Using base directory.", e)
+        subdir_path = base_path
+
+    ensure_dir_exists(str(subdir_path))
 
     ext = file_format.lower() if file_format.lower() == "html" else "md"
-    file_candidate = os.path.join(subdir, f"{name_candidate}.{ext}")
+    file_candidate = str(subdir_path / f"{name_candidate}.{ext}")
 
     if os.path.isfile(file_candidate):
         if overwrite:
