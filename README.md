@@ -10,20 +10,22 @@ This script saves Reddit posts into local Markdown files for easy reading, shari
 
 
 ## Usage
-1. **Install Python on your device (Recommended)**
-    * Python 3.6+ is required for the main implementation. You can download it from [here](https://www.python.org/downloads/).
-    * Alternatively, if you prefer Ruby, you can download it from [here](https://www.ruby-lang.org/en/downloads/).
+1. **Install Python 3.6+ on your device**
+    * Python 3.6 or higher is required. You can download it from [here](https://www.python.org/downloads/).
+    * **Note**: Python is now the primary implementation. Ruby version is available as a legacy alternative.
 2. **Download the [latest release](https://github.com/chauduyphanvu/reddit-markdown/releases) of this script**
-3. **Open a terminal**
-4. **Run the script with the following command:**
-    * **Python (Recommended)**: `python3 python/main.py`
-    * **Ruby (Alternative)**: `ruby reddit_markdown.rb`
+3. **Install Python dependencies**
+    * Run `pip3 install -r requirements.txt` in the project directory
+4. **Open a terminal**
+5. **Run the script with the following command:**
+    * **Python**: `python3 python/main.py`
+    * **Ruby (Legacy)**: `ruby reddit_markdown.rb`
     * If you call the script from a different folder, you need to specify the path to the script
         * **Python**: `python3 /path/to/python/main.py`
         * **Ruby**: `ruby /path/to/reddit_markdown.rb`
-	* Tip: Starting with the 1.7.0 release, command-line arguments are supported. See [Command-line Arguments](#command-line-arguments) for details. If you use that option, you can skip the next step.
+	* Tip: Command-line arguments are supported. See [Command-line Arguments](#command-line-arguments) for details. If you use that option, you can skip the next step.
     * Tip: You can rename the script to anything and place it anywhere you want
-5. **Enter the link(s) to the Reddit post(s) you want to save**
+6. **Enter the link(s) to the Reddit post(s) you want to save**
 	* If you have multiple links, separate them by commas.
 	* If you need a demo, enter `demo`.
 	* If you want a surprise, enter `surprise`.
@@ -31,14 +33,14 @@ This script saves Reddit posts into local Markdown files for easy reading, shari
 		* Note: This feature is only available in v1.5.0 and above.
 	* If you have a multireddit (i.e. collection of multiple subreddits) defined in `settings.json`, enter its name, e.g. `m/stocks`.
 		* Note: This feature is only available in v1.6.0 and above.
-6. **Enter the path where you want to save the Markdown file(s)**.
+7. **Enter the path where you want to save the Markdown file(s)**.
 	* Leave blank to save in the same folder (where you called the script from)
 	* Starting from v1.4.0, posts can also be saved as HTML files. To do so, get the updated `settings.json` file from that release, and use the `file_format` option. Accepted values are `html` and `md`.
 	* Tip: Starting with the 1.1.0 release, you can set a default path in the `settings.json` file. See [Custom Settings](#custom-settings) for details.
 
-## Authentication (Optional)
+## Authentication (Highly Recommended)
 
-To avoid being rate-limited by Reddit, you can configure the script to authenticate with your Reddit account. This is highly recommended if you plan to download a large number of posts.
+To avoid being rate-limited by Reddit, you can configure the script to authenticate with your Reddit account. **This is highly recommended** if you plan to download a large number of posts. Authentication support was added in version 1.12.0.
 
 1.  **Create a `settings.json` file:**
     *   In the root directory of the project, make a copy of `settings.json.example` and rename it to `settings.json`.
@@ -188,11 +190,11 @@ Make sure to back up your files before running this script to prevent any uninte
 	* Publicly available data. Safe and no security concerns
 * **Look and feel similar to browsing Reddit on desktop web**
 	* Bonus: Plenty of customizations available
-* **Supports both text and multimedia posts**
+* **Supports text, multimedia, video, and GIF posts**
 * **Runs anywhere Python runs**
 	* Python is cross-platform and widely available
-	* Ruby version also available as an alternative
-	* Core logic is platform-agnostic so it can be translated into any other programming languages to run anywhere
+	* Ruby version also available as a legacy alternative
+	* Well-tested with comprehensive test suite (9+ test files, 5000+ lines of code)
 * **Markdown and HTML for universality**
 
 ## Limitations
@@ -200,6 +202,6 @@ Make sure to back up your files before running this script to prevent any uninte
 	* Reddit hides a subset of replies based on upvotes that you can manually click to show. Those won't be saved by this script.
 * **Only supported on desktop**
 	* But you could remote session from a phone to run the script
-* **Need Python installed first** (Ruby also supported as alternative)
+* **Need Python installed first** (Ruby also supported as legacy alternative)
 * **Personal side project with limited bug fixes and features past the initial release**
 	* Pull requests are welcome
