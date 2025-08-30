@@ -7,9 +7,9 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from typing import Any, Dict
+from colored_logger import get_colored_logger
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger = get_colored_logger(__name__)
 
 
 def _load_env_file(env_path: str) -> None:

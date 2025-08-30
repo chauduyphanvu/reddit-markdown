@@ -2,9 +2,9 @@ import logging
 import re
 import time
 from typing import Dict, List, Optional
+from colored_logger import get_colored_logger
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger = get_colored_logger(__name__)
 
 # Cache for compiled regex patterns
 _regex_cache: Dict[str, Optional[re.Pattern]] = {}

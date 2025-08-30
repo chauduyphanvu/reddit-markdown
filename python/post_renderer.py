@@ -6,10 +6,10 @@ import urllib.parse
 from typing import Any, Dict, List
 
 import reddit_utils as utils
+from colored_logger import get_colored_logger
 from filters import apply_filter
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger = get_colored_logger(__name__)
 
 
 def build_post_content(

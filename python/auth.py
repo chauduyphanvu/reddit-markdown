@@ -1,7 +1,8 @@
 import logging
 import requests
+from colored_logger import get_colored_logger
 
-logger = logging.getLogger(__name__)
+logger = get_colored_logger(__name__)
 
 
 def get_access_token(client_id: str, client_secret: str) -> str:

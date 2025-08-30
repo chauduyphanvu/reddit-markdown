@@ -1,9 +1,9 @@
 import argparse
 import logging
 from typing import List
+from colored_logger import get_colored_logger
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger = get_colored_logger(__name__)
 
 
 def _parse_csv(csv_str: str) -> List[str]:

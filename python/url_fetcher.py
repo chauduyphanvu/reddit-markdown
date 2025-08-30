@@ -5,9 +5,9 @@ import os
 import random
 import requests
 from typing import Any, List, Optional
+from colored_logger import get_colored_logger
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger = get_colored_logger(__name__)
 
 
 class UrlFetcher:

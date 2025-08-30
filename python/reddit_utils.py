@@ -9,9 +9,9 @@ import urllib.parse
 import requests
 from pathlib import Path
 from typing import Any, Dict, Optional
+from colored_logger import get_colored_logger
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger = get_colored_logger(__name__)
 
 
 class RateLimiter:

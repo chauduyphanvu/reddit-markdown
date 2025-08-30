@@ -12,11 +12,12 @@ from typing import List
 import reddit_utils as utils
 import auth
 from cli_args import CommandLineArgs
+from colored_logger import setup_colored_logging, get_colored_logger
 from post_renderer import build_post_content
 from settings import Settings
 from url_fetcher import UrlFetcher
 
-logger = logging.getLogger(__name__)
+logger = get_colored_logger(__name__)
 
 
 def main() -> None:
@@ -105,6 +106,11 @@ def _process_all_urls(
 
         if success:
             successful += 1
+            logger.progress(
+                "Progress: %d/%d posts completed successfully",
+                successful,
+                len(all_urls),
+            )
         else:
             failed += 1
 
@@ -112,7 +118,7 @@ def _process_all_urls(
         time.sleep(0.1)  # Small delay to be respectful
 
     # Report final statistics
-    logger.info(
+    logger.notice(
         "Processing complete! Successful: %d, Failed: %d, Total: %d",
         successful,
         failed,
@@ -120,9 +126,9 @@ def _process_all_urls(
     )
 
     if failed > 0:
-        logger.warning("Some posts failed to process. Check the log above for details.")
+        logger.failure("Some posts failed to process. Check the log above for details.")
     else:
-        logger.info("All posts processed successfully!")
+        logger.success("All posts processed successfully!")
 
 
 def _process_single_url(
@@ -239,14 +245,14 @@ def _process_single_url(
 
         # Save the file with error handling
         try:
-            logger.info("Saving post to %s", target_path)
+            logger.trace("Saving post to %s", target_path)
             _write_to_file(Path(target_path), final_content)
-            logger.info("Reddit post saved at %s.", target_path)
+            logger.success("Reddit post saved at %s.", target_path)
             logger.info("---")
             return True
 
         except Exception as e:
-            logger.error("Failed to save post %s: %s", url, e)
+            logger.failure("Failed to save post %s: %s", url, e)
             return False
 
     except Exception as e:
@@ -267,5 +273,5 @@ def _write_to_file(file_path: Path, content: str) -> None:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    setup_colored_logging(level=logging.INFO)
     main()
