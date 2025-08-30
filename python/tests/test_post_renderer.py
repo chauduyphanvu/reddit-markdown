@@ -487,6 +487,108 @@ class TestPostRenderer(BaseTestCase):
         # Verify video tag uses the collision-safe filename
         self.assertIn('<video controls src="./media/video_1.mp4"></video>', result)
 
+    @patch("post_renderer.utils.download_media")
+    @patch("post_renderer.utils.generate_unique_media_filename")
+    @patch("post_renderer.utils.ensure_dir_exists")
+    @patch("post_renderer.utils.get_replies")
+    def test_build_post_content_image_media_handling(
+        self,
+        mock_get_replies,
+        mock_ensure_dir,
+        mock_generate_filename,
+        mock_download_media,
+    ):
+        """Test image media handling with proper URL extraction and download."""
+        mock_get_replies.return_value = {}
+        mock_generate_filename.return_value = "/test/path/media/image_1.jpg"
+        mock_download_media.return_value = True
+
+        # Test with direct image URL
+        image_post_data = self.post_data.copy()
+        image_post_data["post_hint"] = "image"
+        image_post_data["url"] = "https://example.com/image.jpg"
+        self.mock_settings.enable_media_downloads = True
+
+        result = build_post_content(
+            post_data=image_post_data,
+            replies_data=[],
+            settings=self.mock_settings,
+            colors=self.colors,
+            url=self.url,
+            target_path=self.target_path,
+        )
+
+        # Verify the unique filename function was called
+        mock_generate_filename.assert_called_once_with(
+            "https://example.com/image.jpg", "/test/path/media"
+        )
+
+        # Verify download was attempted
+        mock_download_media.assert_called_once_with(
+            "https://example.com/image.jpg", "/test/path/media/image_1.jpg"
+        )
+
+        # Verify image tag is included
+        self.assertIn('<img src="./media/image_1.jpg" alt="Test Post Title"', result)
+
+    @patch("post_renderer.utils.download_media")
+    @patch("post_renderer.utils.generate_unique_media_filename")
+    @patch("post_renderer.utils.ensure_dir_exists")
+    @patch("post_renderer.utils.get_replies")
+    def test_build_post_content_image_preview_handling(
+        self,
+        mock_get_replies,
+        mock_ensure_dir,
+        mock_generate_filename,
+        mock_download_media,
+    ):
+        """Test image media handling using preview data structure."""
+        mock_get_replies.return_value = {}
+        mock_generate_filename.return_value = "/test/path/media/preview_1.png"
+        mock_download_media.return_value = True
+
+        # Test with preview data structure (non-direct URL)
+        image_post_data = self.post_data.copy()
+        image_post_data["post_hint"] = "image"
+        image_post_data["url"] = (
+            "https://reddit.com/r/test/comments/123"  # Non-image URL
+        )
+        image_post_data["preview"] = {
+            "images": [
+                {
+                    "source": {
+                        "url": "https://example.com/preview.png&amp;format=png",
+                        "width": 800,
+                        "height": 600,
+                    }
+                }
+            ]
+        }
+        self.mock_settings.enable_media_downloads = True
+
+        result = build_post_content(
+            post_data=image_post_data,
+            replies_data=[],
+            settings=self.mock_settings,
+            colors=self.colors,
+            url=self.url,
+            target_path=self.target_path,
+        )
+
+        # Verify the unique filename function was called with decoded URL
+        mock_generate_filename.assert_called_once_with(
+            "https://example.com/preview.png&format=png", "/test/path/media"
+        )
+
+        # Verify download was attempted with decoded URL
+        mock_download_media.assert_called_once_with(
+            "https://example.com/preview.png&format=png",
+            "/test/path/media/preview_1.png",
+        )
+
+        # Verify image tag is included
+        self.assertIn('<img src="./media/preview_1.png" alt="Test Post Title"', result)
+
 
 if __name__ == "__main__":
     unittest.main()

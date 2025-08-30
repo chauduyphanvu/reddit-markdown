@@ -94,9 +94,11 @@ def build_post_content(
         )
         lines.append("> " + selftext_escaped.replace("\n", "\n> ") + "\n")
 
-    # Media handling (video, gif, etc.)
+    # Media handling (video, gif, images, etc.)
     if settings.enable_media_downloads:
         media_path = os.path.join(os.path.dirname(target_path), "media")
+
+        # Handle videos
         if post_data.get("is_video"):
             video_url = (
                 post_data.get("media", {}).get("reddit_video", {}).get("fallback_url")
@@ -110,6 +112,42 @@ def build_post_content(
                 if utils.download_media(video_url, local_video_path):
                     lines.append(
                         f'<video controls src="./media/{video_filename}"></video>\n'
+                    )
+
+        # Handle images
+        post_hint = post_data.get("post_hint", "")
+        if post_hint == "image":
+            # Try to get image URL from multiple sources
+            image_url = None
+
+            # First try direct URL
+            direct_url = post_data.get("url", "")
+            if direct_url and any(
+                direct_url.lower().endswith(ext)
+                for ext in [".jpg", ".jpeg", ".png", ".gif", ".webp"]
+            ):
+                image_url = direct_url
+
+            # If no direct image URL, try preview images
+            if not image_url:
+                preview_data = post_data.get("preview", {})
+                images_list = preview_data.get("images", [])
+                if images_list and len(images_list) > 0:
+                    source_data = images_list[0].get("source", {})
+                    preview_url = source_data.get("url", "")
+                    if preview_url:
+                        # Reddit URLs may be HTML encoded
+                        image_url = preview_url.replace("&amp;", "&")
+
+            if image_url:
+                utils.ensure_dir_exists(media_path)
+                local_image_path = utils.generate_unique_media_filename(
+                    image_url, media_path
+                )
+                image_filename = os.path.basename(local_image_path)
+                if utils.download_media(image_url, local_image_path):
+                    lines.append(
+                        f'<img src="./media/{image_filename}" alt="{post_title}" style="max-width: 100%; height: auto;"/>\n'
                     )
 
     # Count total replies (including deeper children)
