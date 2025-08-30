@@ -1,0 +1,303 @@
+"""
+Streamlined filter tests focusing on behavior, not implementation.
+"""
+
+import unittest
+
+from filters import apply_filter
+
+
+class TestFilteringBehavior(unittest.TestCase):
+    """Test content filtering behavior based on expected outcomes."""
+
+    def test_content_passes_when_no_filters_applied(self):
+        """Content should pass through unchanged when no filters match."""
+        original_content = "This is perfectly fine content."
+
+        result = apply_filter(
+            author="good_user",
+            text=original_content,
+            upvotes=100,
+            filtered_keywords=[],
+            filtered_authors=[],
+            min_upvotes=0,
+            filtered_regexes=[],
+            filtered_message="[FILTERED]",
+        )
+
+        self.assertEqual(result, original_content)
+
+    def test_keyword_filtering_blocks_unwanted_content(self):
+        """Content with filtered keywords should be replaced."""
+        test_cases = [
+            ("This contains SPAM content", ["spam"]),
+            ("Buy now! Limited offer!", ["buy", "offer"]),
+            ("Check out this advertisement", ["advertisement"]),
+        ]
+
+        for content, keywords in test_cases:
+            with self.subTest(content=content, keywords=keywords):
+                result = apply_filter(
+                    author="user",
+                    text=content,
+                    upvotes=10,
+                    filtered_keywords=keywords,
+                    filtered_authors=[],
+                    min_upvotes=0,
+                    filtered_regexes=[],
+                    filtered_message="[BLOCKED]",
+                )
+
+                self.assertEqual(result, "[BLOCKED]")
+
+    def test_author_filtering_blocks_unwanted_users(self):
+        """Content from filtered authors should be replaced."""
+        blocked_authors = ["spammer", "troll_user", "banned_account"]
+
+        for author in blocked_authors:
+            with self.subTest(author=author):
+                result = apply_filter(
+                    author=author,
+                    text="Any content from this user",
+                    upvotes=50,
+                    filtered_keywords=[],
+                    filtered_authors=blocked_authors,
+                    min_upvotes=0,
+                    filtered_regexes=[],
+                    filtered_message="[USER_BLOCKED]",
+                )
+
+                self.assertEqual(result, "[USER_BLOCKED]")
+
+    def test_upvote_filtering_blocks_low_quality_content(self):
+        """Content below minimum upvotes should be filtered."""
+        low_quality_scenarios = [
+            (5, 10),  # 5 upvotes, need 10
+            (0, 1),  # 0 upvotes, need 1
+            (-5, 0),  # Downvoted content
+        ]
+
+        for upvotes, min_required in low_quality_scenarios:
+            with self.subTest(upvotes=upvotes, min_required=min_required):
+                result = apply_filter(
+                    author="user",
+                    text="Some content",
+                    upvotes=upvotes,
+                    filtered_keywords=[],
+                    filtered_authors=[],
+                    min_upvotes=min_required,
+                    filtered_regexes=[],
+                    filtered_message="[LOW_QUALITY]",
+                )
+
+                self.assertEqual(result, "[LOW_QUALITY]")
+
+    def test_upvote_filtering_allows_quality_content(self):
+        """Content meeting minimum upvotes should pass through."""
+        quality_scenarios = [
+            (10, 10),  # Exactly at threshold
+            (50, 10),  # Above threshold
+            (100, 5),  # Well above threshold
+        ]
+
+        for upvotes, min_required in quality_scenarios:
+            with self.subTest(upvotes=upvotes, min_required=min_required):
+                original_text = f"Quality content with {upvotes} upvotes"
+                result = apply_filter(
+                    author="user",
+                    text=original_text,
+                    upvotes=upvotes,
+                    filtered_keywords=[],
+                    filtered_authors=[],
+                    min_upvotes=min_required,
+                    filtered_regexes=[],
+                    filtered_message="[LOW_QUALITY]",
+                )
+
+                self.assertEqual(result, original_text)
+
+    def test_regex_filtering_blocks_pattern_matches(self):
+        """Content matching regex patterns should be filtered."""
+        pattern_tests = [
+            (r"\b(buy|sell|trade)\b", "Want to buy this item"),
+            (r"http[s]?://\S+", "Check out https://suspicious-site.com"),
+            (r"[A-Z]{3,}", "THIS IS ALL CAPS SHOUTING"),
+        ]
+
+        for pattern, text in pattern_tests:
+            with self.subTest(pattern=pattern, text=text):
+                result = apply_filter(
+                    author="user",
+                    text=text,
+                    upvotes=10,
+                    filtered_keywords=[],
+                    filtered_authors=[],
+                    min_upvotes=0,
+                    filtered_regexes=[pattern],
+                    filtered_message="[PATTERN_BLOCKED]",
+                )
+
+                self.assertEqual(result, "[PATTERN_BLOCKED]")
+
+    def test_multiple_filter_types_work_together(self):
+        """Multiple filter types should all be checked."""
+        # Content that would pass individual filters but fails combined
+        result = apply_filter(
+            author="suspicious_user",  # This author is blocked
+            text="Great content here",  # Would pass keyword filter
+            upvotes=100,  # Would pass upvote filter
+            filtered_keywords=["spam"],
+            filtered_authors=["suspicious_user"],
+            min_upvotes=5,
+            filtered_regexes=[],
+            filtered_message="[MULTI_FILTER_BLOCK]",
+        )
+
+        self.assertEqual(result, "[MULTI_FILTER_BLOCK]")
+
+    def test_edge_case_inputs_handled_gracefully(self):
+        """Edge case inputs should be handled without crashing."""
+        edge_cases = [
+            {"text": "", "expected_result": ""},  # Empty text passes through
+            {"text": None, "expected_result": None},  # None text passes through
+            {
+                "author": None,
+                "upvotes": 0,
+                "text": "content",
+                "expected_result": "content",
+            },  # None author
+        ]
+
+        for case in edge_cases:
+            with self.subTest(case=case):
+                try:
+                    result = apply_filter(
+                        author=case.get("author", "user"),
+                        text=case.get("text", "content"),
+                        upvotes=case.get("upvotes", 10),
+                        filtered_keywords=["test"],
+                        filtered_authors=[],
+                        min_upvotes=0,
+                        filtered_regexes=[],
+                        filtered_message="[FILTERED]",
+                    )
+
+                    # Should not crash and should return expected result
+                    self.assertEqual(result, case.get("expected_result", "content"))
+                except Exception as e:
+                    self.fail(f"Filter function crashed with edge case {case}: {e}")
+
+    def test_custom_filtered_message_respected(self):
+        """Custom filtered messages should be used."""
+        custom_messages = [
+            "[CUSTOM_BLOCK]",
+            "🚫 Content removed",
+            "This content violated our policy",
+        ]
+
+        for message in custom_messages:
+            with self.subTest(message=message):
+                result = apply_filter(
+                    author="user",
+                    text="spam content",
+                    upvotes=10,
+                    filtered_keywords=["spam"],
+                    filtered_authors=[],
+                    min_upvotes=0,
+                    filtered_regexes=[],
+                    filtered_message=message,
+                )
+
+                self.assertEqual(result, message)
+
+    def test_case_insensitive_keyword_matching(self):
+        """Keyword filtering should work regardless of case."""
+        case_variations = [
+            ("SPAM content here", ["spam"]),
+            ("This is Spam", ["spam"]),
+            ("spam in lowercase", ["SPAM"]),
+        ]
+
+        for text, keywords in case_variations:
+            with self.subTest(text=text, keywords=keywords):
+                result = apply_filter(
+                    author="user",
+                    text=text,
+                    upvotes=10,
+                    filtered_keywords=keywords,
+                    filtered_authors=[],
+                    min_upvotes=0,
+                    filtered_regexes=[],
+                    filtered_message="[BLOCKED]",
+                )
+
+                self.assertEqual(result, "[BLOCKED]")
+
+    def test_unicode_content_filtering(self):
+        """Filtering should work with unicode content."""
+        unicode_test = "This contains émojis 🎉 and açcénted text"
+
+        result = apply_filter(
+            author="user",
+            text=unicode_test,
+            upvotes=10,
+            filtered_keywords=["émojis"],
+            filtered_authors=[],
+            min_upvotes=0,
+            filtered_regexes=[],
+            filtered_message="[UNICODE_FILTERED]",
+        )
+
+        self.assertEqual(result, "[UNICODE_FILTERED]")
+
+
+class TestFilteringIntegration(unittest.TestCase):
+    """Integration tests for filtering in realistic scenarios."""
+
+    def test_social_media_content_filtering(self):
+        """Test filtering typical social media scenarios."""
+        scenarios = [
+            {
+                "name": "promotional_post",
+                "author": "advertiser_bot",
+                "text": "BUY NOW! 50% off everything! Visit our website!",
+                "upvotes": 2,
+                "should_filter": True,
+            },
+            {
+                "name": "quality_discussion",
+                "author": "helpful_user",
+                "text": "Here's a detailed explanation of the topic...",
+                "upvotes": 150,
+                "should_filter": False,
+            },
+            {
+                "name": "downvoted_comment",
+                "author": "regular_user",
+                "text": "Reasonable comment but downvoted",
+                "upvotes": -5,
+                "should_filter": True,  # Due to low/negative upvotes
+            },
+        ]
+
+        for scenario in scenarios:
+            with self.subTest(scenario=scenario["name"]):
+                result = apply_filter(
+                    author=scenario["author"],
+                    text=scenario["text"],
+                    upvotes=scenario["upvotes"],
+                    filtered_keywords=["buy", "visit", "website"],
+                    filtered_authors=["advertiser_bot"],
+                    min_upvotes=5,
+                    filtered_regexes=[r"\d+%\s+off"],
+                    filtered_message="[FILTERED]",
+                )
+
+                if scenario["should_filter"]:
+                    self.assertEqual(result, "[FILTERED]")
+                else:
+                    self.assertEqual(result, scenario["text"])
+
+
+if __name__ == "__main__":
+    unittest.main()

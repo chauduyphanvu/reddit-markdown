@@ -10,47 +10,29 @@ import requests
 from pathlib import Path
 from typing import Any, Dict, Optional
 from colored_logger import get_colored_logger
+from core import RateLimiter, Cache
+from api import RedditClient
+from io_ops import FileManager
+from processing import ContentConverter, UrlProcessor
 
 logger = get_colored_logger(__name__)
 
 
-class RateLimiter:
-    """Simple rate limiter to prevent API abuse."""
-
-    def __init__(self, max_requests: int = 60, window_seconds: int = 60):
-        # Ensure max_requests is an integer in case a Mock object is passed during testing
-        self.max_requests = max_requests if isinstance(max_requests, int) else 60
-        self.window_seconds = window_seconds if isinstance(window_seconds, int) else 60
-        self.requests = []
-
-    def is_allowed(self) -> bool:
-        """Check if a request is allowed within the rate limit."""
-        now = time.time()
-        # Remove old requests outside the window
-        self.requests = [
-            req_time
-            for req_time in self.requests
-            if now - req_time < self.window_seconds
-        ]
-
-        if len(self.requests) < self.max_requests:
-            self.requests.append(now)
-            return True
-        return False
-
-    def wait_time(self) -> float:
-        """Get the time to wait before next request is allowed."""
-        if not self.requests:
-            return 0
-        return max(0, self.window_seconds - (time.time() - self.requests[0]))
+# Legacy RateLimiter class kept for backward compatibility
+# New code should use core.RateLimiter directly
+RateLimiter = RateLimiter
 
 
 # Global instances - will be initialized by configure_performance()
 _rate_limiter: Optional[RateLimiter] = None
+_cache: Optional[Cache] = None
+_reddit_client: Optional[RedditClient] = None
+
+# Legacy compatibility variables for tests
 _json_cache: Dict[str, Any] = {}
 _cache_timestamps: Dict[str, float] = {}
-_cache_ttl_seconds = 300  # Default 5 minutes cache TTL
-_max_cache_entries = 1000  # Default max cache entries
+_cache_ttl_seconds = 300
+_max_cache_entries = 1000
 
 
 def configure_performance(settings) -> None:
@@ -58,7 +40,8 @@ def configure_performance(settings) -> None:
     Configure performance settings based on Settings object.
     Should be called once at application startup.
     """
-    global _rate_limiter, _cache_ttl_seconds, _max_cache_entries
+    global _rate_limiter, _cache, _reddit_client
+    global _cache_ttl_seconds, _max_cache_entries  # Legacy compatibility
 
     # Configure rate limiter - ensure values are integers in case of Mock objects during testing
     requests_per_minute = getattr(settings, "rate_limit_requests_per_minute", 30)
@@ -68,20 +51,23 @@ def configure_performance(settings) -> None:
     _rate_limiter = RateLimiter(max_requests=requests_per_minute, window_seconds=60)
 
     # Configure cache settings - ensure values are integers in case of Mock objects during testing
-    _cache_ttl_seconds = getattr(settings, "cache_ttl_seconds", 300)
-    _cache_ttl_seconds = (
-        _cache_ttl_seconds if isinstance(_cache_ttl_seconds, int) else 300
+    cache_ttl_seconds = getattr(settings, "cache_ttl_seconds", 300)
+    cache_ttl_seconds = cache_ttl_seconds if isinstance(cache_ttl_seconds, int) else 300
+    max_cache_entries = getattr(settings, "max_cache_entries", 1000)
+    max_cache_entries = (
+        max_cache_entries if isinstance(max_cache_entries, int) else 1000
     )
-    _max_cache_entries = getattr(settings, "max_cache_entries", 1000)
-    _max_cache_entries = (
-        _max_cache_entries if isinstance(_max_cache_entries, int) else 1000
-    )
+    _cache = Cache(ttl_seconds=cache_ttl_seconds, max_entries=max_cache_entries)
+
+    # Set legacy compatibility variables
+    _cache_ttl_seconds = cache_ttl_seconds
+    _max_cache_entries = max_cache_entries
 
     logger.info(
         "Performance configured: %d req/min, %ds cache TTL, %d max cache entries",
         requests_per_minute,
-        _cache_ttl_seconds,
-        _max_cache_entries,
+        cache_ttl_seconds,
+        max_cache_entries,
     )
 
 
@@ -93,10 +79,21 @@ def _get_rate_limiter() -> RateLimiter:
     return _rate_limiter
 
 
+def _get_reddit_client(access_token: str = "") -> RedditClient:
+    """Get the global Reddit client, creating one if not configured."""
+    global _reddit_client
+    if _reddit_client is None or _reddit_client.access_token != access_token:
+        _reddit_client = RedditClient(
+            access_token=access_token, rate_limiter=_rate_limiter, cache=_cache
+        )
+    return _reddit_client
+
+
 def clean_url(url: str) -> str:
     """
     Removes trailing query parameters from a Reddit post URL,
     particularly "?utm_source" or anything that follows.
+    Now delegates to UrlProcessor.
 
     :param url: A Reddit post URL.
     :return: Cleaned URL without extraneous query parameters.
@@ -106,45 +103,10 @@ def clean_url(url: str) -> str:
 
 def valid_url(url: str) -> bool:
     """
-    Checks if the given URL matches the typical Reddit post pattern:
-      https://www.reddit.com/r/<subreddit>/comments/<id>/<slug>/?
-
-    Enhanced validation includes:
-    - URL scheme validation
-    - Domain validation
-    - Path component validation
-    - Length limits
-
-    :param url: The URL to validate.
-    :return: True if the URL looks like a valid Reddit post, False otherwise.
+    Checks if the given URL matches the typical Reddit post pattern.
+    Now delegates to UrlProcessor.
     """
-    if not url or not isinstance(url, str):
-        return False
-
-    # Check URL length (reasonable limit)
-    if len(url) > 2048:
-        logger.warning("URL too long (>2048 chars): %s", url[:100])
-        return False
-
-    try:
-        parsed = urllib.parse.urlparse(url)
-
-        # Validate scheme (only HTTPS for security)
-        if parsed.scheme != "https":
-            return False
-
-        # Validate domain
-        allowed_domains = ["www.reddit.com", "reddit.com", "old.reddit.com"]
-        if parsed.netloc.lower() not in allowed_domains:
-            return False
-
-        # Validate path pattern
-        pattern = r"^/r/[a-zA-Z0-9_]{1,100}/comments/[a-zA-Z0-9_]{1,50}/[a-zA-Z0-9_-]{1,200}/?$"
-        return bool(re.match(pattern, parsed.path))
-
-    except Exception as e:
-        logger.warning("URL validation error for '%s': %s", url, e)
-        return False
+    return UrlProcessor.validate_reddit_url(url)
 
 
 def download_post_json(url: str, access_token: str = "") -> Optional[Any]:
@@ -153,6 +115,8 @@ def download_post_json(url: str, access_token: str = "") -> Optional[Any]:
     Uses an access token for authenticated requests if provided.
     Enhanced with rate limiting, retry logic, and caching.
     """
+    global _json_cache, _cache_timestamps
+
     # Input validation
     if not url or not isinstance(url, str):
         logger.error("Invalid URL provided: %s", url)
@@ -231,7 +195,9 @@ def download_post_json(url: str, access_token: str = "") -> Optional[Any]:
 
 
 def _cleanup_cache() -> None:
-    """Remove expired entries from the cache and enforce size limits to prevent memory leaks."""
+    """Remove expired entries from the cache. Legacy function for backward compatibility."""
+    global _json_cache, _cache_timestamps, _cache_ttl_seconds, _max_cache_entries
+
     current_time = time.time()
 
     # Remove expired entries
@@ -245,8 +211,7 @@ def _cleanup_cache() -> None:
         _json_cache.pop(key, None)
         _cache_timestamps.pop(key, None)
 
-    # Enforce cache size limit by removing oldest entries
-    # Handle case where _max_cache_entries might be a Mock object during testing
+    # Enforce cache size limit
     max_entries = _max_cache_entries if isinstance(_max_cache_entries, int) else 1000
     if len(_json_cache) > max_entries:
         # Sort by timestamp and remove oldest entries
@@ -258,22 +223,6 @@ def _cleanup_cache() -> None:
         for key in keys_to_remove:
             _json_cache.pop(key, None)
             _cache_timestamps.pop(key, None)
-
-        logger.debug(
-            "Removed %d oldest cache entries to enforce size limit", len(keys_to_remove)
-        )
-
-    total_removed = len(expired_keys) + (
-        len(keys_to_remove) if "keys_to_remove" in locals() else 0
-    )
-    if total_removed > 0:
-        logger.debug(
-            "Cache cleanup: removed %d entries (%d expired, cache size: %d/%d)",
-            total_removed,
-            len(expired_keys),
-            len(_json_cache),
-            max_entries,
-        )
 
 
 def get_replies(
