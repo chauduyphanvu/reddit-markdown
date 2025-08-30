@@ -1,9 +1,4 @@
-import sys
-import os
-
 """
-# Add parent directory to path to import modules
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 Additional edge case tests for filters.py module.
 Focuses on complex regex patterns and filtering edge cases.
 """
@@ -12,20 +7,11 @@ import unittest
 import re
 
 from filters import apply_filter
-from .test_utils import BaseTestCase
+from .test_utils import FiltersTestCase
 
 
-class TestFiltersEdgeCases(BaseTestCase):
+class TestFiltersEdgeCases(FiltersTestCase):
     """Additional edge case tests for filters module."""
-
-    def setUp(self):
-        """Set up test fixtures."""
-        super().setUp()
-        self.default_filtered_message = "[FILTERED]"
-        # Clear regex cache to ensure test isolation
-        from filters import _regex_cache
-
-        _regex_cache.clear()
 
     def test_apply_filter_with_malformed_regex(self):
         """Test apply_filter with invalid regex pattern."""

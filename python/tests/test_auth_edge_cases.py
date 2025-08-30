@@ -3,27 +3,16 @@ Additional edge case tests for auth.py module.
 Focuses on scenarios not fully covered in the existing test_auth.py.
 """
 
-import sys
-import os
 import unittest
 from unittest.mock import patch, Mock
 import requests
 
-# Add parent directory to path to import modules
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-
 from auth import get_access_token
-from .test_utils import BaseTestCase
+from .test_utils import AuthTestCase, MockFactory
 
 
-class TestAuthEdgeCases(BaseTestCase):
+class TestAuthEdgeCases(AuthTestCase):
     """Additional edge case tests for auth module."""
-
-    def setUp(self):
-        """Set up test fixtures."""
-        super().setUp()
-        self.client_id = "test_client_id"
-        self.client_secret = "test_client_secret"
 
     @patch("auth.requests.post")
     def test_authentication_json_decode_error_handling(self, mock_post):

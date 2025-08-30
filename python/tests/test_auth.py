@@ -1,59 +1,32 @@
-import sys
-import os
 import unittest
 from unittest.mock import patch, Mock
 import requests
 
-# Add parent directory to path to import modules
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-
 from auth import get_access_token
-from .test_utils import BaseTestCase, MockFactory, TEST_USER_AGENTS
+from .test_utils import AuthTestCase, MockFactory, AssertionHelpers, TEST_USER_AGENTS
 
 
-class TestAuth(BaseTestCase):
+class TestAuth(AuthTestCase):
     """Comprehensive test suite for auth.py module."""
-
-    def setUp(self):
-        """Set up test fixtures."""
-        super().setUp()
-        self.client_id = "test_client_id"
-        self.client_secret = "test_client_secret"
-        self.valid_token = "test_access_token_123"
 
     @patch("auth.requests.post")
     def test_successful_authentication(self, mock_post):
         """Test successful authentication returns access token."""
-        # Mock successful response using MockFactory
-        mock_post.return_value = MockFactory.create_http_response(
-            json_data={"access_token": self.valid_token}
+        mock_post.return_value = MockFactory.create_auth_success_response(
+            self.valid_token
         )
 
         result = get_access_token(self.client_id, self.client_secret)
 
         self.assertEqual(result, self.valid_token)
-        mock_post.assert_called_once()
-
-        # Verify the correct API call was made
-        call_args = mock_post.call_args
-        self.assertEqual(call_args[0][0], "https://www.reddit.com/api/v1/access_token")
-        self.assertEqual(call_args[1]["data"]["grant_type"], "client_credentials")
-        self.assertEqual(
-            call_args[1]["headers"]["User-Agent"], TEST_USER_AGENTS["default"]
+        AssertionHelpers.assert_auth_request_called_correctly(
+            mock_post, self.client_id, self.client_secret
         )
-        self.assertEqual(call_args[1]["timeout"], 10)
-
-        # Verify auth was passed correctly
-        auth = call_args[1]["auth"]
-        self.assertEqual(auth.username, self.client_id)
-        self.assertEqual(auth.password, self.client_secret)
 
     @patch("auth.requests.post")
     def test_authentication_missing_token_in_response(self, mock_post):
         """Test when response JSON doesn't contain access_token."""
-        mock_post.return_value = MockFactory.create_http_response(
-            json_data={"error": "invalid_grant"}
-        )
+        mock_post.return_value = MockFactory.create_auth_error_response("missing_token")
 
         result = get_access_token(self.client_id, self.client_secret)
 
@@ -73,9 +46,7 @@ class TestAuth(BaseTestCase):
     @patch("auth.requests.post")
     def test_authentication_http_error(self, mock_post):
         """Test authentication with HTTP error (4xx, 5xx)."""
-        mock_post.return_value = MockFactory.create_http_response(
-            raise_for_status=requests.exceptions.HTTPError("401 Unauthorized")
-        )
+        mock_post.return_value = MockFactory.create_auth_error_response("http")
 
         result = get_access_token(self.client_id, self.client_secret)
 
@@ -84,9 +55,9 @@ class TestAuth(BaseTestCase):
     @patch("auth.requests.post")
     def test_authentication_network_error(self, mock_post):
         """Test authentication with network connection error."""
-        mock_post.side_effect = requests.exceptions.ConnectionError(
-            "Network unreachable"
-        )
+        mock_post.side_effect = MockFactory.create_network_error_mock(
+            requests.exceptions.ConnectionError, "Network unreachable"
+        ).side_effect
 
         result = get_access_token(self.client_id, self.client_secret)
 
@@ -95,7 +66,9 @@ class TestAuth(BaseTestCase):
     @patch("auth.requests.post")
     def test_authentication_timeout_error(self, mock_post):
         """Test authentication with timeout error."""
-        mock_post.side_effect = requests.exceptions.Timeout("Request timed out")
+        mock_post.side_effect = MockFactory.create_network_error_mock(
+            requests.exceptions.Timeout, "Request timed out"
+        ).side_effect
 
         result = get_access_token(self.client_id, self.client_secret)
 

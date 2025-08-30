@@ -1,19 +1,17 @@
-import sys
-import os
 import unittest
 from unittest.mock import patch, Mock, mock_open, MagicMock
+import os
 import json
 import datetime
 import requests
-
-# Add parent directory to path to import modules
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import reddit_utils as utils
 from .test_utils import (
     BaseTestCase,
     TempDirTestCase,
+    RedditUtilsTestCase,
     MockFactory,
+    AssertionHelpers,
     TEST_URLS,
     TEST_USER_AGENTS,
     TEST_TIMEOUTS,
@@ -108,15 +106,8 @@ class TestValidUrl(BaseTestCase):
         self.assertFalse(utils.valid_url("random string"))
 
 
-class TestDownloadPostJson(BaseTestCase):
+class TestDownloadPostJson(RedditUtilsTestCase):
     """Test the download_post_json function."""
-
-    def setUp(self):
-        """Set up test fixtures and clear cache."""
-        super().setUp()
-        # Clear the global cache to ensure test isolation
-        utils._json_cache.clear()
-        utils._cache_timestamps.clear()
 
     @patch("reddit_utils.requests.get")
     def test_download_post_json_success(self, mock_get):

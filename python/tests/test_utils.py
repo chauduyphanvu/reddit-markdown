@@ -11,6 +11,8 @@ import tempfile
 import shutil
 import os
 import json
+import sys
+import requests
 from unittest.mock import Mock, patch
 from datetime import datetime
 
@@ -22,6 +24,11 @@ class BaseTestCase(unittest.TestCase):
         """Set up common test fixtures."""
         # Disable logging during tests to reduce noise
         logging.disable(logging.CRITICAL)
+
+        # Add parent directory to path for module imports
+        parent_dir = os.path.join(os.path.dirname(__file__), "..")
+        if parent_dir not in sys.path:
+            sys.path.insert(0, parent_dir)
 
     def tearDown(self):
         """Clean up after tests."""
@@ -43,13 +50,62 @@ class TempDirTestCase(BaseTestCase):
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
 
+class AuthTestCase(BaseTestCase):
+    """Base test case for authentication-related tests with common setup."""
+
+    def setUp(self):
+        """Set up common authentication test fixtures."""
+        super().setUp()
+        self.client_id = "test_client_id"
+        self.client_secret = "test_client_secret"
+        self.valid_token = "test_access_token_123"
+        self.access_token = "test_token"
+
+
+class RedditUtilsTestCase(BaseTestCase):
+    """Base test case for reddit_utils tests with cache clearing."""
+
+    def setUp(self):
+        """Set up test fixtures and clear cache."""
+        super().setUp()
+        # Clear the global cache to ensure test isolation
+        try:
+            import reddit_utils as utils
+
+            utils._json_cache.clear()
+            utils._cache_timestamps.clear()
+        except (ImportError, AttributeError):
+            # Cache variables might not exist yet
+            pass
+
+
+class FiltersTestCase(BaseTestCase):
+    """Base test case for filters tests with regex cache clearing."""
+
+    def setUp(self):
+        """Set up test fixtures and clear regex cache."""
+        super().setUp()
+        self.default_filtered_message = "[FILTERED]"
+        # Clear regex cache to ensure test isolation
+        try:
+            from filters import _regex_cache
+
+            _regex_cache.clear()
+        except (ImportError, AttributeError):
+            # Cache might not exist yet
+            pass
+
+
 class MockFactory:
     """Factory class for creating common mock objects."""
 
     @staticmethod
-    def create_http_response(json_data=None, raise_for_status=None):
+    def create_http_response(
+        json_data=None, raise_for_status=None, status_code=200, iter_content=None
+    ):
         """Create a mock HTTP response object."""
         mock_response = Mock()
+        mock_response.status_code = status_code
 
         if raise_for_status is not None:
             mock_response.raise_for_status.side_effect = raise_for_status
@@ -59,7 +115,55 @@ class MockFactory:
         if json_data is not None:
             mock_response.json.return_value = json_data
 
+        if iter_content is not None:
+            mock_response.iter_content.return_value = iter_content
+
         return mock_response
+
+    @staticmethod
+    def create_network_error_mock(error_class, error_message):
+        """Create a mock that raises network errors."""
+        mock_response = Mock()
+        mock_response.side_effect = error_class(error_message)
+        return mock_response
+
+    @staticmethod
+    def create_auth_success_response(access_token="test_access_token_123"):
+        """Create a mock successful authentication response."""
+        return MockFactory.create_http_response(
+            json_data={"access_token": access_token}
+        )
+
+    @staticmethod
+    def create_auth_error_response(error_type="http"):
+        """Create a mock authentication error response."""
+        if error_type == "http":
+            return MockFactory.create_http_response(
+                raise_for_status=requests.exceptions.HTTPError("401 Unauthorized")
+            )
+        elif error_type == "network":
+            return MockFactory.create_network_error_mock(
+                requests.exceptions.ConnectionError, "Network error"
+            )
+        elif error_type == "timeout":
+            return MockFactory.create_network_error_mock(
+                requests.exceptions.Timeout, "Request timed out"
+            )
+        elif error_type == "missing_token":
+            return MockFactory.create_http_response(
+                json_data={"error": "invalid_grant"}
+            )
+        else:
+            return MockFactory.create_http_response(
+                raise_for_status=requests.exceptions.RequestException("Generic error")
+            )
+
+    @staticmethod
+    def create_context_manager_mock(mock_object):
+        """Create a context manager from a mock object."""
+        mock_object.__enter__ = Mock(return_value=mock_object)
+        mock_object.__exit__ = Mock(return_value=None)
+        return mock_object
 
     @staticmethod
     def create_settings_mock(**overrides):
@@ -211,6 +315,57 @@ class AssertionHelpers:
         ), f"URL count mismatch: {len(actual_urls)} vs {len(expected_urls)}"
         assert set(actual_urls) == set(expected_urls), f"URL sets don't match"
 
+    @staticmethod
+    def assert_auth_request_called_correctly(
+        mock_post,
+        client_id,
+        client_secret,
+        expected_url="https://www.reddit.com/api/v1/access_token",
+    ):
+        """Assert that an authentication request was made correctly."""
+        mock_post.assert_called_once()
+        call_args = mock_post.call_args
+
+        # Check URL
+        assert call_args[0][0] == expected_url
+
+        # Check data
+        data = call_args[1]["data"]
+        assert data["grant_type"] == "client_credentials"
+
+        # Check auth
+        auth = call_args[1]["auth"]
+        assert auth.username == client_id
+        assert auth.password == client_secret
+
+        # Check headers
+        headers = call_args[1]["headers"]
+        assert "User-Agent" in headers
+
+        # Check timeout
+        assert "timeout" in call_args[1]
+
+    @staticmethod
+    def assert_file_written_correctly(mock_write, expected_filename, expected_content):
+        """Assert that a file was written with correct parameters."""
+        mock_write.assert_called_once()
+        call_args = mock_write.call_args
+        assert call_args[0][0] == expected_filename
+        assert call_args[0][1] == expected_content
+
+    @staticmethod
+    def assert_directory_created(temp_dir, expected_path):
+        """Assert that a directory was created at the expected path."""
+        import os
+
+        full_path = (
+            os.path.join(temp_dir, expected_path)
+            if not os.path.isabs(expected_path)
+            else expected_path
+        )
+        assert os.path.exists(full_path), f"Directory {full_path} was not created"
+        assert os.path.isdir(full_path), f"Path {full_path} is not a directory"
+
 
 class MockContextManager:
     """Utility for creating context managers for testing."""
@@ -244,6 +399,37 @@ def patch_requests_get(return_value=None, side_effect=None):
                 if side_effect:
                     mock_get.side_effect = side_effect
                 return test_func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+def patch_requests_post(return_value=None, side_effect=None):
+    """Decorator to patch requests.post with common response."""
+
+    def decorator(test_func):
+        def wrapper(*args, **kwargs):
+            with patch("requests.post") as mock_post:
+                if return_value:
+                    mock_post.return_value = return_value
+                if side_effect:
+                    mock_post.side_effect = side_effect
+                return test_func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+def patch_module_import(module_name, side_effect=ImportError("Module not available")):
+    """Decorator to patch module imports."""
+
+    def decorator(test_func):
+        def wrapper(*args, **kwargs):
+            with patch.dict("sys.modules", {module_name: None}):
+                with patch("builtins.__import__", side_effect=side_effect):
+                    return test_func(*args, **kwargs)
 
         return wrapper
 

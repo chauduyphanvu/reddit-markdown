@@ -1,8 +1,4 @@
-import sys
-
 """
-# Add parent directory to path to import modules
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 Additional edge case tests for reddit_utils.py module.
 Focuses on complex scenarios and edge cases not fully covered in test_reddit_utils.py.
 """
@@ -15,10 +11,10 @@ import datetime
 import requests
 
 import reddit_utils as utils
-from .test_utils import TempDirTestCase, BaseTestCase
+from .test_utils import BaseTestCase, TempDirTestCase, RedditUtilsTestCase, MockFactory
 
 
-class TestRedditUtilsEdgeCases(TempDirTestCase):
+class TestRedditUtilsEdgeCases(TempDirTestCase, RedditUtilsTestCase):
     """Additional edge case tests for reddit_utils module."""
 
     def test_clean_url_with_multiple_utm_sources(self):
