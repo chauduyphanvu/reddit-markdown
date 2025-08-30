@@ -1,7 +1,11 @@
+import sys
+import os
 import unittest
 from unittest.mock import patch
-import sys
 import logging
+
+# Add parent directory to path to import modules
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from cli_args import CommandLineArgs, _parse_csv
 

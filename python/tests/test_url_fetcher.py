@@ -1,3 +1,4 @@
+import sys
 import unittest
 from unittest.mock import patch, Mock, mock_open, MagicMock
 import json
@@ -7,6 +8,10 @@ import logging
 import requests
 
 from url_fetcher import UrlFetcher
+
+
+# Add parent directory to path to import modules
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
 class MockSettings:

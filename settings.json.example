@@ -3,9 +3,7 @@
     "file_format": "md",
     "update_check_on_startup": true,
     "auth": {
-        "login_on_startup": false,
-        "client_id": "YOUR_CLIENT_ID",
-        "client_secret": "YOUR_CLIENT_SECRET",
+        "login_on_startup": false
     },
     "show_upvotes": true,
     "reply_depth_max": -1,

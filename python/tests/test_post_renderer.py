@@ -1,9 +1,14 @@
+import sys
+import os
 import unittest
 from unittest.mock import patch, Mock
 import datetime
 
+# Add parent directory to path to import modules
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
 from post_renderer import build_post_content
-from test_utils import BaseTestCase, MockFactory, TestDataFixtures
+from .test_utils import BaseTestCase, MockFactory, TestDataFixtures
 
 
 class TestPostRenderer(BaseTestCase):

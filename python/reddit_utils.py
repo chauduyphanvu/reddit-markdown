@@ -205,6 +205,9 @@ def download_post_json(url: str, access_token: str = "") -> Optional[Any]:
             _cache_timestamps[cache_key] = current_time
 
             return result
+        except json.JSONDecodeError as e:
+            logger.error("JSON decode error for %s: %s", url, e)
+            return None
         except requests.exceptions.Timeout:
             logger.warning(
                 "Timeout on attempt %d/%d for %s", attempt + 1, max_retries, url

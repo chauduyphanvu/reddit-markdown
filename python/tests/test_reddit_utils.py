@@ -1,12 +1,16 @@
+import sys
+import os
 import unittest
 from unittest.mock import patch, Mock, mock_open, MagicMock
-import os
 import json
 import datetime
 import requests
 
+# Add parent directory to path to import modules
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
 import reddit_utils as utils
-from test_utils import (
+from .test_utils import (
     BaseTestCase,
     TempDirTestCase,
     MockFactory,

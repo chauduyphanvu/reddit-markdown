@@ -1,4 +1,8 @@
+import sys
+
 """
+# Add parent directory to path to import modules
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 Additional integration tests focusing on cross-module interactions and complex scenarios.
 """
 
@@ -12,7 +16,7 @@ import main
 import reddit_utils as utils
 from post_renderer import build_post_content
 from filters import apply_filter
-from test_utils import TempDirTestCase, MockFactory
+from .test_utils import TempDirTestCase, MockFactory
 
 
 class TestIntegrationEdgeCases(TempDirTestCase):

@@ -10,6 +10,10 @@ from urllib.error import URLError
 from settings import Settings
 
 
+# Add parent directory to path to import modules
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+
 class TestSettings(unittest.TestCase):
     """Comprehensive test suite for settings.py module."""
 

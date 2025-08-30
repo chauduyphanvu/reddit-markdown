@@ -1,8 +1,13 @@
+import sys
+import os
 import unittest
 import re
 
+# Add parent directory to path to import modules
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
 from filters import apply_filter
-from test_utils import BaseTestCase
+from .test_utils import BaseTestCase
 
 
 class TestApplyFilter(BaseTestCase):

@@ -1,3 +1,4 @@
+import sys
 import unittest
 from unittest.mock import patch, Mock, MagicMock
 import tempfile
@@ -6,6 +7,10 @@ import json
 import logging
 
 import main
+
+
+# Add parent directory to path to import modules
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
 class TestMainIntegration(unittest.TestCase):
