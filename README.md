@@ -10,16 +10,17 @@ This script saves Reddit posts into local Markdown files for easy reading, shari
 
 
 ## Usage
-1. **Install Ruby/Python on your device**
-    * Depending on the version you want to use, you need to install Ruby or Python on your device.
-      * If you are using the Ruby version, you can download it from [here](https://www.ruby-lang.org/en/downloads/).
-      * If you are using the Python version, you can download it from [here](https://www.python.org/downloads/).
+1. **Install Python on your device (Recommended)**
+    * Python 3.6+ is required for the main implementation. You can download it from [here](https://www.python.org/downloads/).
+    * Alternatively, if you prefer Ruby, you can download it from [here](https://www.ruby-lang.org/en/downloads/).
 2. **Download the [latest release](https://github.com/chauduyphanvu/reddit-markdown/releases) of this script**
 3. **Open a terminal**
 4. **Run the script with the following command:**
-    * `ruby reddit_markdown.rb` or `python3 python/main.py`
+    * **Python (Recommended)**: `python3 python/main.py`
+    * **Ruby (Alternative)**: `ruby reddit_markdown.rb`
     * If you call the script from a different folder, you need to specify the path to the script
-        * `ruby /path/to/reddit_markdown.rb` or `python3 /path/to/python/main.py`
+        * **Python**: `python3 /path/to/python/main.py`
+        * **Ruby**: `ruby /path/to/reddit_markdown.rb`
 	* Tip: Starting with the 1.7.0 release, command-line arguments are supported. See [Command-line Arguments](#command-line-arguments) for details. If you use that option, you can skip the next step.
     * Tip: You can rename the script to anything and place it anywhere you want
 5. **Enter the link(s) to the Reddit post(s) you want to save**
@@ -111,7 +112,7 @@ This section describes a potential workflow to automate the process of saving Re
 
 We are going to use GitHub Actions to automate the process. If you are not familiar with GitHub Actions, please read [GitHub's guide on getting started with GitHub Actions](https://docs.github.com/en/actions/learn-github-actions/understanding-github-actions) first.
 
-Here is a sample GitHub Actions workflow which triggers the `reddit_markdown.rb` script every two hours:
+Here is a sample GitHub Actions workflow which triggers the Python script every two hours:
 
 ```yaml
 name: Fetch Reddit posts
@@ -122,21 +123,21 @@ on:
     - cron: '0 */2 * * *'
 
 jobs:
-  run_ruby_script:
+  run_python_script:
     runs-on: self-hosted
 
     steps:
     - name: Check out repository
       uses: actions/checkout@v3
-	
-	- name: Set up Ruby
-	  uses: ruby/setup-ruby@v1
-	  with:
-		ruby-version: 2.7
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
 
     - name: Run script
       run: |
-        ruby reddit_markdown.rb --multis m/fav,m/stocks,m/programming,m/travel
+        python3 python/main.py --multis m/fav,m/stocks,m/programming,m/travel
 ```
 
 You can customize this workflow according to your needs. For example, you can modify the `cron` schedule to adjust the frequency of the script execution, or change the command-line arguments to others (see [Command-line arguments](#command-line-arguments) for more details).
@@ -188,8 +189,9 @@ Make sure to back up your files before running this script to prevent any uninte
 * **Look and feel similar to browsing Reddit on desktop web**
 	* Bonus: Plenty of customizations available
 * **Supports both text and multimedia posts**
-* **Runs anywhere Ruby/Python runs**
-	* Ruby/Python is cross-platform
+* **Runs anywhere Python runs**
+	* Python is cross-platform and widely available
+	* Ruby version also available as an alternative
 	* Core logic is platform-agnostic so it can be translated into any other programming languages to run anywhere
 * **Markdown and HTML for universality**
 
@@ -198,6 +200,6 @@ Make sure to back up your files before running this script to prevent any uninte
 	* Reddit hides a subset of replies based on upvotes that you can manually click to show. Those won't be saved by this script.
 * **Only supported on desktop**
 	* But you could remote session from a phone to run the script
-* **Need Ruby/Python installed first**
+* **Need Python installed first** (Ruby also supported as alternative)
 * **Personal side project with limited bug fixes and features past the initial release**
 	* Pull requests are welcome
