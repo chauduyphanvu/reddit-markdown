@@ -1,5 +1,5 @@
 """
-Streamlined auth tests focusing on behavior, not implementation.
+Auth tests focusing on behavior, not implementation.
 """
 
 import unittest

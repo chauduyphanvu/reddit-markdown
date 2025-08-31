@@ -1,5 +1,5 @@
 """
-Streamlined tests for reddit_utils focusing on behavior, not implementation.
+Tests for reddit_utils focusing on behavior, not implementation.
 """
 
 import unittest

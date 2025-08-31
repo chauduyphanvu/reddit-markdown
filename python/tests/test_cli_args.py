@@ -1,5 +1,5 @@
 """
-Streamlined CLI args tests focusing on input/output behavior.
+CLI args tests focusing on input/output behavior.
 """
 
 import sys

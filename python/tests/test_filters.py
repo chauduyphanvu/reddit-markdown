@@ -1,5 +1,5 @@
 """
-Streamlined filter tests focusing on behavior, not implementation.
+Filter tests focusing on behavior, not implementation.
 """
 
 import unittest

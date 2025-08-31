@@ -7,59 +7,46 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to create release for'
+        description: 'Release tag to create'
         required: true
         type: string
+      draft:
+        description: 'Create draft release'
+        type: boolean
+        default: false
 
 concurrency:
   group: release
-  cancel-in-progress: false  # Don't cancel releases in progress
+  cancel-in-progress: false  # Don't cancel releases
 
 jobs:
-  create-release:
+  release:
     name: Create Release
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      issues: write
+      pull-requests: write
     
     steps:
-    - name: Checkout code
+    - name: Checkout
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0  # Fetch all history for changelog generation
+        fetch-depth: 0  # Full history for changelog
     
-    - name: Set up Python
+    - name: Setup Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
+        cache: 'pip'
     
-    - name: Set up Ruby
-      uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: '3.2'
-        bundler-cache: true
-    
-    - name: Install Python dependencies
+    - name: Install Dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+        pip install pyyaml
     
-    - name: Install Ruby dependencies
-      run: |
-        gem install bundler
-        bundle install
-    
-    - name: Run tests before release
-      working-directory: python
-      run: |
-        python -m unittest discover -s . -p "test_*.py" -v
-    
-    - name: Validate scripts
-      run: |
-        python python/main.py --help
-        ruby reddit_markdown.rb --help
-    
-    - name: Get version from tag
+    - name: Get Release Version
       id: version
       run: |
         if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -68,90 +55,26 @@ jobs:
           VERSION=${GITHUB_REF#refs/tags/}
         fi
         echo "version=${VERSION}" >> $GITHUB_OUTPUT
-        echo "version_number=${VERSION#v}" >> $GITHUB_OUTPUT
+        echo "draft=${{ inputs.draft || 'false' }}" >> $GITHUB_OUTPUT
     
-    - name: Generate changelog
-      id: changelog
+    - name: Create Release
+      working-directory: python
       run: |
-        # Simple changelog generation from git commits since last tag
-        PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -v "${{ steps.version.outputs.version }}" | head -n1)
-        if [ -z "$PREVIOUS_TAG" ]; then
-          PREVIOUS_TAG=$(git rev-list --max-parents=0 HEAD)
+        if [ "${{ steps.version.outputs.draft }}" = "true" ]; then
+          ./ci release ${{ steps.version.outputs.version }} --draft
+        else
+          ./ci release ${{ steps.version.outputs.version }}
         fi
-        
-        CHANGELOG=$(git log ${PREVIOUS_TAG}..${{ steps.version.outputs.version }} --pretty=format:"* %s (%h)" --no-merges)
-        
-        if [ -z "$CHANGELOG" ]; then
-          CHANGELOG="* Initial release"
-        fi
-        
-        echo "changelog<<EOF" >> $GITHUB_OUTPUT
-        echo "$CHANGELOG" >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
+      env:
+        CI_ENVIRONMENT: ci
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
-    - name: Create source archive
-      run: |
-        mkdir -p release-assets
-        
-        # Create Python-focused archive
-        tar -czf release-assets/reddit-markdown-python-${{ steps.version.outputs.version_number }}.tar.gz \
-          python/ \
-          requirements.txt \
-          settings.json.example \
-          README.md \
-          LICENSE.txt \
-          CHANGELOG.md
-        
-        # Create Ruby-focused archive  
-        tar -czf release-assets/reddit-markdown-ruby-${{ steps.version.outputs.version_number }}.tar.gz \
-          reddit_markdown.rb \
-          timestamped_subs.rb \
-          command_line_args.rb \
-          Gemfile \
-          settings.json.example \
-          README.md \
-          LICENSE.txt \
-          CHANGELOG.md
-        
-        # Create complete archive
-        tar -czf release-assets/reddit-markdown-complete-${{ steps.version.outputs.version_number }}.tar.gz \
-          --exclude='.git*' \
-          --exclude='release-assets' \
-          --exclude='.DS_Store' \
-          --exclude='__pycache__' \
-          --exclude='.idea' \
-          .
-    
-    - name: Create Release and Upload Assets
-      uses: softprops/action-gh-release@v1
+    - name: Upload Release Assets
+      uses: actions/upload-artifact@v4
+      if: always()
       with:
-        tag_name: ${{ steps.version.outputs.version }}
-        name: Release ${{ steps.version.outputs.version }}
-        body: |
-          ## Changes in ${{ steps.version.outputs.version }}
-          
-          ${{ steps.changelog.outputs.changelog }}
-          
-          ## Installation
-          
-          ### Python (Recommended)
-          1. Download `reddit-markdown-python-${{ steps.version.outputs.version_number }}.tar.gz`
-          2. Extract and install dependencies: `pip install -r requirements.txt`
-          3. Run: `python3 python/main.py`
-          
-          ### Ruby (Alternative)
-          1. Download `reddit-markdown-ruby-${{ steps.version.outputs.version_number }}.tar.gz`
-          2. Extract and install dependencies: `bundle install`
-          3. Run: `ruby reddit_markdown.rb`
-          
-          ### Complete Package
-          Download `reddit-markdown-complete-${{ steps.version.outputs.version_number }}.tar.gz` for both implementations.
-          
-          See README.md for detailed usage instructions.
-        draft: false
-        prerelease: ${{ contains(steps.version.outputs.version, '-') }}
-        files: |
-          release-assets/reddit-markdown-python-${{ steps.version.outputs.version_number }}.tar.gz
-          release-assets/reddit-markdown-ruby-${{ steps.version.outputs.version_number }}.tar.gz
-          release-assets/reddit-markdown-complete-${{ steps.version.outputs.version_number }}.tar.gz
-        token: ${{ secrets.GITHUB_TOKEN }}
+        name: release-assets
+        path: |
+          ci-reports/
+          dist/
+        retention-days: 90

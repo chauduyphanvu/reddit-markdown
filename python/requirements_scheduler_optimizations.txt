@@ -1,0 +1,27 @@
+# Additional dependencies for scheduler optimizations
+# Install with: pip install -r requirements_scheduler_optimizations.txt
+
+# System monitoring and resource management
+psutil>=5.9.0           # Process and system utilities for monitoring CPU, memory usage
+                        # Used for resource monitoring, memory tracking, and performance metrics
+
+# Testing framework for optimization tests
+pytest>=7.0.0           # Testing framework
+pytest-asyncio>=0.21.0  # Async testing support
+pytest-mock>=3.10.0     # Mock support for testing
+pytest-cov>=4.0.0       # Coverage reporting
+
+# Optional: For enhanced performance profiling
+memory-profiler>=0.60.0 # Memory profiling (optional)
+line-profiler>=4.0.0    # Line-by-line profiling (optional)
+
+# Note: All other dependencies are already covered by the existing requirements
+# The optimizations primarily use standard library modules:
+# - threading, concurrent.futures (for concurrency)
+# - sqlite3 (for database operations) 
+# - hashlib (for bloom filter hashing)
+# - signal (for graceful shutdown)
+# - contextlib (for resource management)
+# - queue (for connection pooling)
+# - time, datetime (for timing and scheduling)
+# - pathlib, tempfile (for file operations)

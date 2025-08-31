@@ -1,5 +1,5 @@
 {
-  "version": "1.12.0",
+    "version": "1.13.0",
     "file_format": "md",
     "update_check_on_startup": true,
     "auth": {
@@ -22,6 +22,81 @@
     },
     "default_save_location": "DEFAULT_REDDIT_SAVE_LOCATION",
     "use_timestamped_directories": false,
+    "performance": {
+        "rate_limit_requests_per_minute": 30,
+        "cache_ttl_seconds": 300,
+        "max_cache_entries": 1000
+    },
+    "scheduler": {
+        "enabled": false,
+        "check_interval_seconds": 30,
+        "database_path": "scheduler_state.db",
+        "cleanup_old_history_days": 90,
+        "default_max_posts_per_subreddit": 25,
+        "default_retry_count": 3,
+        "default_retry_delay_seconds": 60,
+        "default_timeout_seconds": 3600,
+        "scheduled_tasks": [
+            {
+                "_comment": "Example task - remove this comment and customize as needed",
+                "_example": {
+                    "name": "Daily Tech News",
+                    "cron_expression": "0 9 * * *",
+                    "subreddits": [
+                        "r/programming",
+                        "r/technology"
+                    ],
+                    "max_posts_per_subreddit": 15,
+                    "enabled": true
+                }
+            }
+        ]
+    },
+    "search": {
+        "enabled": true,
+        "auto_index_on_download": true,
+        "database_path": "reddit_search.db",
+        "index_max_workers": 4,
+        "auto_tag_posts": true,
+        "search_results_limit": 50,
+        "content_preview_length": 200,
+        "enable_suggestions": true,
+        "auto_tag_patterns": {
+            "question": [
+                "\\?",
+                "how to",
+                "what is",
+                "why does",
+                "can someone"
+            ],
+            "tutorial": [
+                "tutorial",
+                "guide",
+                "how-to",
+                "step by step",
+                "walkthrough"
+            ],
+            "discussion": [
+                "thoughts",
+                "opinions",
+                "what do you think",
+                "discussion"
+            ],
+            "news": [
+                "breaking",
+                "announced",
+                "released",
+                "update",
+                "new version"
+            ],
+            "review": [
+                "review",
+                "experience with",
+                "thoughts on",
+                "worth it"
+            ]
+        }
+    },
     "multi_reddits": {
         "m/stocks": [
             "r/wallstreetbets",
@@ -50,7 +125,9 @@
             "r/ProgrammerHumor",
             "r/ProgrammerDadJokes",
             "r/programminghorror",
-            "r/javascript"
+            "r/javascript",
+            "r/Python",
+            "r/MachineLearning"
         ],
         "m/news": [
             "r/news",

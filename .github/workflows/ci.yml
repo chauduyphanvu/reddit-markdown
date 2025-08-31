@@ -7,116 +7,78 @@ on:
     branches: [ main, develop ]
   workflow_dispatch:
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  python-tests:
-    name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
+  ci:
+    name: CI Pipeline
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        # Install common CI tools
+        pip install pytest pytest-cov black flake8 mypy bandit safety pyyaml
+    
+    - name: Run CI Pipeline
+      working-directory: python
+      run: ./ci
+      env:
+        CI_ENVIRONMENT: ci
+    
+    - name: Upload Reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: ci-reports
+        path: ci-reports/
+        retention-days: 30
+
+  cross-platform:
+    name: Cross-Platform (${{ matrix.os }}, Python ${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+        python-version: ['3.9', '3.11', '3.12']
         exclude:
-          # Reduce matrix size by excluding some combinations
           - os: macos-latest
-            python-version: '3.8'
+            python-version: '3.9'
           - os: windows-latest
-            python-version: '3.8'
+            python-version: '3.9'
     
     steps:
-    - name: Checkout code
+    - name: Checkout
       uses: actions/checkout@v4
     
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Setup Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'
     
-    - name: Install dependencies
+    - name: Install Dependencies  
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+        pip install pytest pyyaml
     
-    - name: Lint with flake8
-      run: |
-        # Stop build if there are syntax errors or undefined names
-        flake8 python/ --count --select=E9,F63,F7,F82 --show-source --statistics
-        # Exit-zero treats all errors as warnings
-        flake8 python/ --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
-    
-    - name: Check code formatting with black
-      run: |
-        black --check --diff python/
-    
-    - name: Type check with mypy
-      run: |
-        mypy python/ --ignore-missing-imports --no-strict-optional
-    
-    - name: Test with unittest
+    - name: Run Tests (Cross-Platform)
       working-directory: python
-      run: |
-        python -m unittest discover -s . -p "test_*.py" -v
-      
-    - name: Test script execution (smoke test)
-      working-directory: python
-      run: |
-        python main.py --help
-  
-  ruby-tests:
-    name: Ruby ${{ matrix.ruby-version }} on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-        ruby-version: ['2.7', '3.0', '3.1', '3.2']
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Set up Ruby ${{ matrix.ruby-version }}
-      uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: ${{ matrix.ruby-version }}
-        bundler-cache: true
-    
-    - name: Install dependencies
-      run: |
-        gem install bundler
-        bundle install
-    
-    - name: Test script execution (smoke test)
-      run: |
-        ruby reddit_markdown.rb --help
-  
-  security-scan:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-    
-    - name: Install bandit
-      run: |
-        pip install bandit[toml]
-    
-    - name: Run security scan
-      run: |
-        # Generate report for artifacts
-        bandit -r python/ -f json -o bandit-report.json --severity-level medium || true
-        # Fail workflow on medium/high severity issues
-        bandit -r python/ -f txt --severity-level medium
-    
-    - name: Upload security scan results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: security-scan-results
-        path: bandit-report.json
+      run: ./ci test --python-only
+      env:
+        CI_ENVIRONMENT: ci

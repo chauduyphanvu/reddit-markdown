@@ -1,0 +1,73 @@
+# Reddit-Markdown CI/CD Configuration
+# Simple configuration for local-first CI/CD
+
+global:
+  working_directory: "python"
+  python_executable: "python3"
+  requirements_file: "requirements.txt"
+  test_directory: "tests"
+  reports_directory: "ci-reports"
+
+commands:
+  # Full CI pipeline
+  ci:
+    description: "Full CI pipeline (test + quality + security)"
+    steps: ["test", "quality", "security"]
+    fail_fast: true
+
+  # Individual commands
+  test:
+    description: "Run all tests with coverage"
+    timeout: 600
+    patterns: ["tests/"]
+    coverage: true
+
+  quality:
+    description: "Code quality checks and formatting"
+    tools:
+      black:
+        enabled: true
+        args: ["--check", "--diff", "--line-length=88"]
+      flake8:
+        enabled: true
+        args: ["--max-line-length=88", "--extend-ignore=E203,W503"]
+      mypy:
+        enabled: true
+        args: ["--ignore-missing-imports", "--strict-optional"]
+
+  security:
+    description: "Security vulnerability scans"
+    tools:
+      bandit:
+        enabled: true
+        args: ["-r", ".", "-x", "tests/", "-f", "txt"]
+      safety:
+        enabled: true
+        args: ["check", "--json"]
+
+  deps:
+    description: "Update project dependencies"
+    auto_update: false
+    create_backup: true
+
+  release:
+    description: "Create new project release"
+    require_clean_repo: true
+    create_github_release: true
+
+# Environment-specific overrides
+environments:
+  local:
+    commands:
+      release:
+        require_clean_repo: false # Allow dirty repo for local testing
+        create_github_release: false
+
+  ci:
+    commands:
+      test:
+        timeout: 900 # Allow more time in CI
+      quality:
+        tools:
+          mypy:
+            args: ["--ignore-missing-imports"] # Less strict in CI

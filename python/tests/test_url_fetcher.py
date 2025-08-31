@@ -1,5 +1,5 @@
 """
-Streamlined URL fetcher tests focusing on behavior, not implementation.
+URL fetcher tests focusing on behavior, not implementation.
 """
 
 import unittest

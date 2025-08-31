@@ -1,5 +1,5 @@
 """
-Streamlined post renderer tests focusing on behavior, not implementation.
+Post renderer tests focusing on behavior, not implementation.
 """
 
 import unittest

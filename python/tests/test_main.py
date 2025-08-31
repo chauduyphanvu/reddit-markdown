@@ -1,5 +1,5 @@
 """
-Streamlined main module tests focusing on behavior, not implementation details.
+Main module tests focusing on behavior, not implementation details.
 """
 
 import sys

@@ -128,6 +128,32 @@ class EnhancedLogger:
         return getattr(self._logger, name)
 
 
+class ColoredLogger:
+    """Wrapper class for easy logger creation with colored output."""
+
+    def __init__(self, name: str, level: int = logging.INFO):
+        """
+        Initialize colored logger.
+
+        Args:
+            name: Logger name
+            level: Logging level
+        """
+        self.name = name
+        self.logger = self._create_logger(name, level)
+
+    def _create_logger(self, name: str, level: int) -> EnhancedLogger:
+        """Create and configure the logger."""
+        # Setup colored logging if not already configured
+        if not logging.getLogger().handlers:
+            setup_colored_logging(level)
+
+        base_logger = logging.getLogger(name)
+        base_logger.setLevel(level)
+
+        return EnhancedLogger(base_logger)
+
+
 def get_colored_logger(name: str) -> EnhancedLogger:
     """
     Get an enhanced logger instance with colored output support and custom levels.

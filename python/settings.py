@@ -6,7 +6,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Any, Dict
+from typing import Any, Dict, List
 from colored_logger import get_colored_logger
 
 logger = get_colored_logger(__name__)
@@ -164,6 +164,56 @@ class Settings:
         )
         self.rate_limit_requests_per_minute: int = performance_settings.get(
             "rate_limit_requests_per_minute", 30
+        )
+
+        # Scheduler settings
+        scheduler_settings = self.raw.get("scheduler", {})
+        self.scheduler_enabled: bool = scheduler_settings.get("enabled", False)
+        self.scheduler_check_interval_seconds: int = scheduler_settings.get(
+            "check_interval_seconds", 30
+        )
+        self.scheduler_database_path: str = scheduler_settings.get(
+            "database_path", "scheduler_state.db"
+        )
+        self.scheduler_cleanup_old_history_days: int = scheduler_settings.get(
+            "cleanup_old_history_days", 90
+        )
+        self.scheduler_default_max_posts_per_subreddit: int = scheduler_settings.get(
+            "default_max_posts_per_subreddit", 25
+        )
+        self.scheduler_default_retry_count: int = scheduler_settings.get(
+            "default_retry_count", 3
+        )
+        self.scheduler_default_retry_delay_seconds: int = scheduler_settings.get(
+            "default_retry_delay_seconds", 60
+        )
+        self.scheduler_default_timeout_seconds: int = scheduler_settings.get(
+            "default_timeout_seconds", 3600
+        )
+        self.scheduler_scheduled_tasks: List[Dict[str, Any]] = scheduler_settings.get(
+            "scheduled_tasks", []
+        )
+
+        # Search settings
+        search_settings = self.raw.get("search", {})
+        self.search_enabled: bool = search_settings.get("enabled", True)
+        self.search_auto_index_on_download: bool = search_settings.get(
+            "auto_index_on_download", True
+        )
+        self.search_database_path: str = search_settings.get(
+            "database_path", "reddit_search.db"
+        )
+        self.search_index_max_workers: int = search_settings.get("index_max_workers", 4)
+        self.search_auto_tag_posts: bool = search_settings.get("auto_tag_posts", True)
+        self.search_results_limit: int = search_settings.get("search_results_limit", 50)
+        self.search_content_preview_length: int = search_settings.get(
+            "content_preview_length", 200
+        )
+        self.search_enable_suggestions: bool = search_settings.get(
+            "enable_suggestions", True
+        )
+        self.search_auto_tag_patterns: Dict[str, List[str]] = search_settings.get(
+            "auto_tag_patterns", {}
         )
 
         # Additional settings

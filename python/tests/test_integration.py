@@ -1,5 +1,5 @@
 """
-Streamlined integration tests focusing on essential behavior and workflows.
+Integration tests focusing on essential behavior and workflows.
 """
 
 import sys

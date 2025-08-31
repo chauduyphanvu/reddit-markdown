@@ -4,6 +4,8 @@
 
 Ever found an amazing Reddit discussion that you want to save forever? Or maybe you're doing research and need to archive Reddit posts and comments? This tool downloads Reddit posts and converts them into clean, readable Markdown files that you can view in any text editor, note-taking app, or documentation tool.
 
+**NEW!** ✨ **Automated Scheduling & Content Search** - Set up the tool to automatically download posts from your favorite subreddits on any schedule (daily, weekly, hourly, etc.) with smart duplicate detection and persistent history tracking. Plus, full-text search and tag-based organization to find and organize your archived content!
+
 <div>
 	<img src="https://chauduyphanvu.s3.us-east-2.amazonaws.com/screenshots/Reddit_Markdown_Raw.png" width="49%" />
 	<img src="https://chauduyphanvu.s3.us-east-2.amazonaws.com/screenshots/Reddit_Markdown_Rendered.png" width="49%" />
@@ -62,6 +64,10 @@ After running the tool, you'll have beautiful Markdown files containing:
 - Clean formatting that's easy to read
 
 You can open these files in any text editor, import them into note-taking apps like Obsidian or Notion, or just read them as-is!
+
+### 🕐 Want It Automatic & Searchable?
+
+Once you're comfortable with the basic tool, you can set up **automated scheduling** to download posts regularly without any manual work, plus use the **content search & indexing** feature to find and organize your archived content. Perfect for research, staying updated with communities, or building personal archives. See the [Automated Scheduling](#-automated-scheduling-new) and [Content Search & Indexing](#-content-search--indexing-new) sections below!
 
 ---
 
@@ -140,9 +146,236 @@ Control which comments get saved:
 }
 ```
 
-### Automation
+### 🔍 Content Search & Indexing (NEW!)
 
-Run the tool automatically using GitHub Actions, cron jobs, or task schedulers. Here's a sample GitHub Actions workflow:
+**Perfect for:** Researchers, students, data scientists, or anyone building large Reddit archives who needs to quickly find specific content.
+
+The Reddit-Markdown tool now includes a powerful search system that indexes all your downloaded posts and provides fast full-text search, tag-based organization, and smart filtering capabilities!
+
+#### Quick Start with Search
+
+1. **Index your existing posts:**
+   ```bash
+   # Index all posts in your archive
+   python3 python/cli_search.py index /path/to/your/reddit-posts
+
+   # Index specific directory with progress tracking
+   python3 python/cli_search.py index /Users/name/reddit-archive --recursive
+   ```
+
+2. **Search your content:**
+   ```bash
+   # Simple text search
+   python3 python/cli_search.py search "machine learning python"
+
+   # Advanced search with filters
+   python3 python/cli_search.py search "tutorial" --subreddit r/Python --min-upvotes 50 --limit 20
+
+   # Search by author or date range
+   python3 python/cli_search.py search --author python_guru --date-from 2024-01-01
+   ```
+
+3. **Organize with tags:**
+   ```bash
+   # Create custom tags
+   python3 python/cli_search.py tag create "favorites" --description "My favorite posts" --color "#FF0000"
+
+   # Tag posts manually
+   python3 python/cli_search.py tag apply abc123def456 "favorites,tutorial,python"
+
+   # Auto-tag based on content patterns
+   python3 python/cli_search.py tag auto-apply abc123def456
+
+   # Search by tags
+   python3 python/cli_search.py search --tags "favorites,python"
+   ```
+
+#### Search Features
+
+- **⚡ Full-Text Search:** Powered by SQLite FTS5 for lightning-fast searches across titles, content, and metadata
+- **🏷️ Smart Tagging:** Manual tags plus automatic tagging based on content patterns (questions, tutorials, news, etc.)
+- **🎯 Advanced Filtering:** Filter by subreddit, author, upvotes, date ranges, tags, and more
+- **📊 Relevance Ranking:** Results ranked by BM25 algorithm for best match first
+- **🔄 Incremental Indexing:** Only processes new or changed files for efficient updates
+- **💾 Metadata Extraction:** Automatically extracts and indexes all Reddit post metadata
+
+#### Search Configuration
+
+Enable search features in `settings.json`:
+
+```json
+{
+  "search": {
+    "enabled": true,
+    "database_path": "reddit_search.db",
+    "auto_index_on_download": true,
+    "auto_tag_posts": true,
+    "max_indexer_threads": 4
+  }
+}
+```
+
+#### Example Search Scenarios
+
+```bash
+# Research workflow
+python3 python/cli_search.py search "neural networks" --subreddit r/MachineLearning,r/deeplearning --min-upvotes 100
+
+# Find your saved favorites
+python3 python/cli_search.py search --tags favorites --sort upvotes --limit 50
+
+# Track discussions by specific users
+python3 python/cli_search.py search --author expert_username --date-from 2024-06-01
+
+# Find tutorial content
+python3 python/cli_search.py search --tags tutorial,guide --subreddit r/Python,r/learnpython
+
+# Browse recent high-quality content
+python3 python/cli_search.py search --min-upvotes 500 --date-from 2024-08-01 --sort date
+```
+
+#### Tag System
+
+The search system includes a flexible tagging system with:
+
+- **Manual Tags:** Create custom tags for your organization system
+- **Auto Tags:** Automatically applied based on content patterns:
+  - `question` - Posts with question words or question marks
+  - `discussion` - Discussion and opinion-seeking posts
+  - `tutorial` - How-to guides and tutorials
+  - `news` - News and announcement posts
+  - `review` - Product or service reviews
+  - `sub_[subreddit]` - Automatic subreddit-based tags
+
+### 🕐 Automated Scheduling (NEW!)
+
+**Perfect for:** Regular content archiving, research data collection, keeping up with specific communities.
+
+The Reddit-Markdown tool now includes a built-in scheduler that can automatically download posts from your favorite subreddits on a customizable schedule - no external cron jobs or GitHub Actions needed!
+
+#### Quick Start with Scheduling
+
+1. **Enable the scheduler** in `settings.json`:
+   ```json
+   {
+     "scheduler": {
+       "enabled": true
+     }
+   }
+   ```
+
+2. **Add a scheduled task using the CLI:**
+   ```bash
+   # Add a new scheduled task to download Python posts daily at 9 AM
+   python3 python/scheduler_cli.py add "Daily Python Posts" "0 9 * * *" "r/python,r/learnpython" --max-posts 15
+
+   # Start the scheduler daemon to run tasks
+   python3 python/scheduler_cli.py start
+   ```
+
+3. **Or define tasks in settings.json:**
+   ```json
+   {
+     "scheduler": {
+       "enabled": true,
+       "scheduled_tasks": [
+         {
+           "name": "Morning Tech News",
+           "cron_expression": "0 9 * * *",
+           "subreddits": ["r/programming", "r/technology"],
+           "max_posts_per_subreddit": 10
+         },
+         {
+           "name": "Weekly ML Papers",
+           "cron_expression": "0 10 * * 1",
+           "subreddits": ["r/MachineLearning", "r/deeplearning"],
+           "max_posts_per_subreddit": 20
+         }
+       ]
+     }
+   }
+   ```
+
+#### Schedule Examples
+
+The scheduler uses standard cron expressions plus friendly shortcuts:
+
+| Expression | When It Runs | Use Case |
+|------------|--------------|----------|
+| `@daily` or `0 0 * * *` | Every day at midnight | Daily news roundup |
+| `0 9 * * *` | Every day at 9 AM | Morning reading material |
+| `0 */6 * * *` | Every 6 hours | High-activity subreddits |
+| `0 10 * * 1` | Mondays at 10 AM | Weekly digest |
+| `*/30 * * * *` | Every 30 minutes | Breaking news or trending topics |
+| `@weekly` | Sundays at midnight | Weekly summary |
+
+#### Command Line Interface
+
+Manage your scheduled tasks with a full CLI:
+
+```bash
+# Task Management
+python3 python/scheduler_cli.py add "Task Name" "0 12 * * *" "r/subreddit1,r/subreddit2"
+python3 python/scheduler_cli.py list                   # Show all tasks
+python3 python/scheduler_cli.py show TASK_ID           # Task details
+python3 python/scheduler_cli.py enable TASK_ID         # Enable a task
+python3 python/scheduler_cli.py disable TASK_ID        # Disable a task
+python3 python/scheduler_cli.py remove TASK_ID         # Delete a task
+
+# Scheduler Control
+python3 python/scheduler_cli.py start                  # Start scheduler daemon
+python3 python/scheduler_cli.py status                 # Show status
+python3 python/scheduler_cli.py stats                  # Detailed statistics
+
+# History and Analysis
+python3 python/scheduler_cli.py history --limit 50            # Recent downloads
+python3 python/scheduler_cli.py history --subreddit r/python  # Subreddit-specific
+
+# Utilities
+python3 python/scheduler_cli.py validate "0 9 * * *"   # Test cron expressions
+python3 python/scheduler_cli.py test TASK_ID           # Test task execution
+```
+
+#### Advanced Scheduling Configuration
+
+Full control through `settings.json`:
+
+```json
+{
+  "scheduler": {
+    "enabled": true,
+    "check_interval_seconds": 30,
+    "database_path": "scheduler_state.db",
+    "cleanup_old_history_days": 90,
+    "default_max_posts_per_subreddit": 25,
+    "default_retry_count": 3,
+    "default_retry_delay_seconds": 60,
+    "default_timeout_seconds": 3600
+  }
+}
+```
+
+#### Smart Features
+
+- **🔍 Duplicate Detection:** Never downloads the same post twice
+- **📊 Download History:** Track what's been downloaded and when
+- **🛡️ Error Recovery:** Tasks continue running even if individual posts fail
+- **⚡ Rate Limiting:** Respects Reddit API limits automatically
+- **💾 Persistent State:** Survives computer restarts and crashes
+- **📈 Statistics:** Detailed analytics on your download activity
+- **🧹 Auto Cleanup:** Automatically removes old download records
+
+#### Integration with Existing Workflow
+
+The scheduler works seamlessly alongside manual downloads:
+- Uses the same settings, filters, and output formats
+- Integrates with your existing authentication setup
+- Saves files to the same locations using your naming preferences
+- Respects all your filtering rules (keywords, upvotes, etc.)
+
+#### External Automation (Alternative)
+
+If you prefer external scheduling tools, here's a sample GitHub Actions workflow:
 
 ```yaml
 name: Archive Reddit Posts
@@ -184,20 +417,70 @@ your-save-folder/
 
 ## 💡 Why Use This Tool?
 
-- **Research-Friendly:** Perfect for academic research, sentiment analysis, or data collection
-- **Offline Access:** Read Reddit content anywhere, anytime
-- **Clean Format:** No ads, no distractions, just content
-- **Searchable:** Use your computer's search to find specific discussions
-- **Backup:** Preserve valuable discussions that might get deleted
-- **Privacy:** No tracking, no data collection - everything stays on your computer
+- **🔍 Research-Friendly:** Perfect for academic research, sentiment analysis, or data collection
+- **📱 Offline Access:** Read Reddit content anywhere, anytime
+- **🎨 Clean Format:** No ads, no distractions, just content
+- **🔎 Searchable:** Use your computer's search to find specific discussions
+- **💾 Backup:** Preserve valuable discussions that might get deleted
+- **🔒 Privacy:** No tracking, no data collection - everything stays on your computer
+- **🕐 Automated:** NEW! Set up schedules to automatically download posts from your favorite subreddits
+- **📊 Smart Filtering:** Avoid duplicates and filter content by keywords, upvotes, or regex patterns
+- **🔍 Full-Text Search:** NEW! Lightning-fast search and tag-based organization of your archived content
+- **⚡ Scalable:** From single posts to bulk archiving thousands of discussions
 
 ## 🛠️ Technical Details
 
 - **Languages:** Python (primary), Ruby (legacy)
 - **Output Formats:** Markdown, HTML
 - **Cross-Platform:** Works on Windows, Mac, Linux
+- **Search Engine:** SQLite FTS5 full-text search with BM25 ranking
+- **Scheduling:** Built-in cron-like scheduler with SQLite persistence
 - **Well-Tested:** Comprehensive test suite with 5000+ lines of test code
+- **Robust:** Thread-safe, error recovery, rate limiting, duplicate detection
 - **Open Source:** Free forever, contribute on GitHub
+- **Python-Native CI/CD:** Modern automated testing, quality checks, and release management
+
+---
+
+## 👩‍💻 For Contributors & Developers
+
+### Local Development & CI/CD
+
+This project uses a **Python-native CI/CD system** that you can run locally:
+
+```bash
+# Navigate to the python directory
+cd python
+
+# Run the full CI pipeline locally (same as GitHub Actions)
+python3 ci                    # Full CI pipeline
+python3 ci --list             # List available commands
+python3 ci --help             # Show detailed help
+
+# Run specific checks
+python3 ci test              # Tests only
+python3 ci quality           # Code quality
+python3 ci security          # Security scans
+```
+
+### Available Pipelines
+- **`ci`** - Full validation (tests + quality + security)
+- **`quick`** - Fast feedback (tests only)
+- **`quality`** - Code quality analysis
+- **`security`** - Security scanning
+- **`release`** - Release management
+- **`dependencies`** - Dependency updates
+
+### Testing
+```bash
+# Run all tests
+python3 -m pytest tests/ -v
+
+# Run specific test categories
+python3 -m pytest tests/test_main.py -v             # Main application tests
+python3 -m pytest tests/test_integration.py -v      # Integration tests
+python3 -m pytest tests/test_search_*.py -v         # Search system tests
+```
 
 ---
 
