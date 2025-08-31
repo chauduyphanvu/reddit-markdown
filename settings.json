@@ -1,5 +1,5 @@
 {
-    "version": "1.11.0",
+    "version": "1.13.0",
     "file_format": "md",
     "update_check_on_startup": true,
     "show_upvotes": true,
@@ -10,6 +10,11 @@
     "overwrite_existing_file": false,
     "save_posts_by_subreddits": true,
     "show_timestamp": true,
+    "use_timestamped_directories": false,
+    "enable_media_downloads": true,
+    "auth": {
+        "login_on_startup": false
+    },
     "filtered_message": "REMOVED DUE TO CUSTOM FILTER(S)",
     "filters": {
         "keywords": [],
@@ -18,7 +23,43 @@
         "regexes": []
     },
     "default_save_location": "DEFAULT_REDDIT_SAVE_LOCATION",
-    "use_timestamped_directories": false,
+    "performance": {
+        "rate_limit_requests_per_minute": 30,
+        "cache_ttl_seconds": 300,
+        "max_cache_entries": 1000
+    },
+    "scheduler": {
+        "enabled": false,
+        "check_interval_seconds": 30,
+        "database_path": "scheduler_state.db",
+        "cleanup_old_history_days": 90,
+        "default_max_posts_per_subreddit": 25,
+        "default_retry_count": 3,
+        "default_retry_delay_seconds": 60,
+        "default_timeout_seconds": 3600,
+        "scheduled_tasks": []
+    },
+    "search": {
+        "enabled": true,
+        "auto_index_on_download": true,
+        "database_path": "reddit_search.db",
+        "index_max_workers": 4,
+        "auto_tag_posts": true,
+        "search_results_limit": 50,
+        "content_preview_length": 200,
+        "enable_suggestions": true,
+        "auto_tag_patterns": {}
+    },
+    "archive": {
+        "enabled": false,
+        "auto_create": false,
+        "compression_format": "auto",
+        "compression_level": null,
+        "include_metadata": true,
+        "output_directory": "",
+        "name_template": "{source_dir}_{timestamp}.{extension}",
+        "cleanup_after_archive": false
+    },
     "multi_reddits": {
         "m/stocks": [
             "r/wallstreetbets",

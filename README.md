@@ -4,7 +4,7 @@
 
 Ever found an amazing Reddit discussion that you want to save forever? Or maybe you're doing research and need to archive Reddit posts and comments? This tool downloads Reddit posts and converts them into clean, readable Markdown files that you can view in any text editor, note-taking app, or documentation tool.
 
-**NEW!** ✨ **Automated Scheduling & Content Search** - Set up the tool to automatically download posts from your favorite subreddits on any schedule (daily, weekly, hourly, etc.) with smart duplicate detection and persistent history tracking. Plus, full-text search and tag-based organization to find and organize your archived content!
+**NEW!** ✨ **Automated Scheduling, Content Search & Standalone Archive Tool** - Set up the tool to automatically download posts from your favorite subreddits on any schedule (daily, weekly, hourly, etc.) with smart duplicate detection and persistent history tracking. Plus, full-text search and tag-based organization to find and organize your archived content! Includes a standalone high-performance archive compression tool for easy sharing and storage.
 
 <div>
 	<img src="https://chauduyphanvu.s3.us-east-2.amazonaws.com/screenshots/Reddit_Markdown_Raw.png" width="49%" />
@@ -65,6 +65,15 @@ After running the tool, you'll have beautiful Markdown files containing:
 
 You can open these files in any text editor, import them into note-taking apps like Obsidian or Notion, or just read them as-is!
 
+### 📦 Want to Compress Your Archives?
+
+After downloading posts, you can use the **standalone archive tool** to compress them into efficient archives for sharing or backup:
+
+```bash
+# Compress your downloaded posts into an archive
+python3 python/cli_archive.py create /path/to/your/downloaded/posts
+```
+
 ### 🕐 Want It Automatic & Searchable?
 
 Once you're comfortable with the basic tool, you can set up **automated scheduling** to download posts regularly without any manual work, plus use the **content search & indexing** feature to find and organize your archived content. Perfect for research, staying updated with communities, or building personal archives. See the [Automated Scheduling](#-automated-scheduling-new) and [Content Search & Indexing](#-content-search--indexing-new) sections below!
@@ -116,6 +125,9 @@ python3 python/main.py --multis "m/tech,m/science"
 
 # Load URLs from files
 python3 python/main.py --src-files "my-urls.txt,more-urls.csv"
+
+# Load URLs from files
+python3 python/main.py --src-files "my-urls.txt,more-urls.csv"
 ```
 
 ### Customization Options
@@ -132,6 +144,94 @@ Edit `settings.json` to control behavior:
 | `use_timestamped_directories` | Organize by date | `true` or `false` |
 | `show_timestamp` | Include post timestamps | `true` or `false` |
 | `overwrite_existing_file` | Overwrite existing files | `true` or `false` |
+
+### 📦 Archive Compression (NEW!)
+
+**Perfect for:** Sharing downloaded content, backup storage, or managing large collections efficiently.
+
+The Reddit-Markdown tool now includes a **standalone archive tool** for high-performance compression of your downloaded content. This tool operates independently from the download process - first download your content, then use the archive tool to compress it for sharing, backup, and storage optimization.
+
+#### Key Features
+
+- **🚀 ZSTD Compression:** Ultra-fast compression with superior ratios (3x faster than traditional formats)
+- **📦 ZIP Compatibility:** Universal ZIP format for maximum compatibility
+- **⚡ Auto-Detection:** Automatically chooses the optimal compression format for your system
+- **📊 Progress Tracking:** Real-time progress updates for large archive operations
+- **🔧 Metadata Inclusion:** Detailed archive metadata with file information and timestamps
+- **✅ Integrity Verification:** Built-in archive integrity checking and verification
+- **🎯 Directory-Based:** Archive any directory containing downloaded Reddit content
+
+#### Standalone Archive Tool Usage
+
+The archive tool is a separate command-line utility that works on existing downloaded content:
+
+```bash
+# Basic archive creation (auto-detects optimal format)
+python3 python/cli_archive.py create /path/to/your/reddit-posts
+
+# Specify compression format and level
+python3 python/cli_archive.py create /path/to/reddit-posts --format zstd --level 5
+
+# Maximum compression for storage optimization
+python3 python/cli_archive.py create /path/to/reddit-posts --format zip --level 9
+
+# Custom archive output path
+python3 python/cli_archive.py create /path/to/reddit-posts --output /backups/reddit-archive-2024.zst
+
+# Quiet mode (no progress output)
+python3 python/cli_archive.py create /path/to/reddit-posts --quiet
+```
+
+#### Archive Management Commands
+
+```bash
+# Display archive information
+python3 python/cli_archive.py info /path/to/archive.zip
+python3 python/cli_archive.py info /path/to/archive.zst --detailed
+
+# Verify archive integrity
+python3 python/cli_archive.py verify /path/to/archive.zip
+
+# List supported compression formats
+python3 python/cli_archive.py formats
+```
+
+#### Archive Formats & Performance
+
+| Format | Speed | Compression | Compatibility | Best For |
+|--------|-------|-------------|---------------|----------|
+| **ZSTD** (preferred) | ⚡⚡⚡ Ultra Fast | 🗜️🗜️ Excellent | Modern systems | Large archives, frequent use |
+| **ZIP** (fallback) | ⚡⚡ Fast | 🗜️ Good | Universal | Sharing, older systems |
+
+#### Installation for Optimal Performance
+
+For best compression performance, install ZSTD support:
+
+```bash
+pip3 install zstandard
+```
+
+*If ZSTD is not available, the tool automatically falls back to ZIP compression.*
+
+#### Workflow Integration
+
+1. **Download content** using the main tool:
+   ```bash
+   python3 python/main.py --subs "r/MachineLearning,r/Python"
+   ```
+
+2. **Archive the downloaded content**:
+   ```bash
+   python3 python/cli_archive.py create /path/to/downloaded/posts
+   ```
+
+#### Archive Contents
+
+Each archive includes:
+- All downloaded markdown/HTML files with original directory structure
+- Archive metadata (JSON file with creation info, file list, compression details)
+- Preserved timestamps and file attributes
+- Nested directory structures maintained
 
 ### Filtering Options
 
@@ -426,6 +526,7 @@ your-save-folder/
 - **🕐 Automated:** NEW! Set up schedules to automatically download posts from your favorite subreddits
 - **📊 Smart Filtering:** Avoid duplicates and filter content by keywords, upvotes, or regex patterns
 - **🔍 Full-Text Search:** NEW! Lightning-fast search and tag-based organization of your archived content
+- **📦 Standalone Archive Tool:** NEW! High-performance ZSTD/ZIP compression tool for efficient storage and sharing
 - **⚡ Scalable:** From single posts to bulk archiving thousands of discussions
 
 ## 🛠️ Technical Details
@@ -435,6 +536,7 @@ your-save-folder/
 - **Cross-Platform:** Works on Windows, Mac, Linux
 - **Search Engine:** SQLite FTS5 full-text search with BM25 ranking
 - **Scheduling:** Built-in cron-like scheduler with SQLite persistence
+- **Standalone Archive Tool:** ZSTD (ultra-fast) and ZIP (universal) support with integrity verification
 - **Well-Tested:** Comprehensive test suite with 5000+ lines of test code
 - **Robust:** Thread-safe, error recovery, rate limiting, duplicate detection
 - **Open Source:** Free forever, contribute on GitHub
@@ -480,6 +582,7 @@ python3 -m pytest tests/ -v
 python3 -m pytest tests/test_main.py -v             # Main application tests
 python3 -m pytest tests/test_integration.py -v      # Integration tests
 python3 -m pytest tests/test_search_*.py -v         # Search system tests
+python3 -m pytest tests/test_archive_*.py -v        # Standalone archive tool tests
 ```
 
 ---

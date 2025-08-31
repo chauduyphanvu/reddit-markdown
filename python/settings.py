@@ -6,7 +6,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from colored_logger import get_colored_logger
 
 logger = get_colored_logger(__name__)
@@ -214,6 +214,29 @@ class Settings:
         )
         self.search_auto_tag_patterns: Dict[str, List[str]] = search_settings.get(
             "auto_tag_patterns", {}
+        )
+
+        # Archive settings
+        archive_settings = self.raw.get("archive", {})
+        self.archive_enabled: bool = archive_settings.get("enabled", False)
+        self.archive_auto_create: bool = archive_settings.get("auto_create", False)
+        self.archive_compression_format: str = archive_settings.get(
+            "compression_format", "auto"
+        )
+        self.archive_compression_level: Optional[int] = archive_settings.get(
+            "compression_level", None
+        )
+        self.archive_include_metadata: bool = archive_settings.get(
+            "include_metadata", True
+        )
+        self.archive_output_directory: str = archive_settings.get(
+            "output_directory", ""
+        )
+        self.archive_name_template: str = archive_settings.get(
+            "name_template", "{source_dir}_{timestamp}.{extension}"
+        )
+        self.archive_cleanup_after_archive: bool = archive_settings.get(
+            "cleanup_after_archive", False
         )
 
         # Additional settings

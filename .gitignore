@@ -2,7 +2,6 @@
 .DS_Store
 /.idea
 /python/__pycache__
-settings.json
 
 # Environment files containing sensitive credentials
 .env
