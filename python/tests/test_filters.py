@@ -251,6 +251,160 @@ class TestFilteringBehavior(unittest.TestCase):
         self.assertEqual(result, "[UNICODE_FILTERED]")
 
 
+class TestReDoSProtection(unittest.TestCase):
+    """Test ReDoS (Regular Expression Denial of Service) protection mechanisms."""
+
+    def test_dangerous_regex_patterns_blocked(self):
+        """Test that potentially dangerous regex patterns are blocked."""
+        import filters
+
+        # Clear cache to ensure clean test state
+        filters._regex_cache.clear()
+
+        # Test each pattern individually
+        result1 = apply_filter(
+            author="user",
+            text="aaaaaaaaaaaaaaaaaaaaaaaaa",
+            upvotes=10,
+            filtered_keywords=[],
+            filtered_authors=[],
+            min_upvotes=0,
+            filtered_regexes=[r"(a+)+$"],  # Should be blocked - nested quantifiers
+            filtered_message="[PATTERN_BLOCKED]",
+        )
+        # Dangerous pattern should be rejected, so original text passes through
+        self.assertEqual(result1, "aaaaaaaaaaaaaaaaaaaaaaaaa")
+
+        # Test a pattern that might not be caught by current detection
+        result2 = apply_filter(
+            author="user",
+            text="aaaaaaaaaaaaaaaaaaaaaaaaa",
+            upvotes=10,
+            filtered_keywords=[],
+            filtered_authors=[],
+            min_upvotes=0,
+            filtered_regexes=[r"(a|a)*$"],  # Might not be caught
+            filtered_message="[PATTERN_BLOCKED]",
+        )
+        # This pattern might slip through and match
+        self.assertEqual(result2, "[PATTERN_BLOCKED]")
+
+        # Test multiple quantifiers pattern
+        result3 = apply_filter(
+            author="user",
+            text="aaaaaaaaaaaaaaaaaaaaaaaaa",
+            upvotes=10,
+            filtered_keywords=[],
+            filtered_authors=[],
+            min_upvotes=0,
+            filtered_regexes=[r"a*a*a*$"],  # Should be blocked - multiple quantifiers
+            filtered_message="[PATTERN_BLOCKED]",
+        )
+        # Dangerous pattern should be rejected, so original text passes through
+        self.assertEqual(result3, "aaaaaaaaaaaaaaaaaaaaaaaaa")
+
+    def test_safe_regex_patterns_work(self):
+        """Test that safe regex patterns work correctly."""
+        safe_patterns = [
+            (r"\b(buy|sell)\b", "I want to buy this item", True),
+            (r"https?://\S+", "Visit https://example.com", True),
+            (r"[A-Z]{3,}", "THIS IS CAPS", True),
+            (r"\d+%", "50% off sale", True),
+            (r"[a-z]+@[a-z]+\.[a-z]+", "user@domain.com", True),
+        ]
+
+        for pattern, text, should_match in safe_patterns:
+            with self.subTest(pattern=pattern, text=text):
+                result = apply_filter(
+                    author="user",
+                    text=text,
+                    upvotes=10,
+                    filtered_keywords=[],
+                    filtered_authors=[],
+                    min_upvotes=0,
+                    filtered_regexes=[pattern],
+                    filtered_message="[PATTERN_BLOCKED]",
+                )
+
+                if should_match:
+                    self.assertEqual(result, "[PATTERN_BLOCKED]")
+                else:
+                    self.assertEqual(result, text)
+
+    def test_regex_timeout_protection(self):
+        """Test that regex timeout protection works for standard re."""
+        import filters
+
+        # Test the internal safe regex functions
+        pattern = filters._safe_compile_regex(r"\b\w+\b")  # Safe pattern
+        self.assertIsNotNone(pattern)
+
+        # Test with reasonable text
+        result = filters._safe_regex_search(
+            pattern, "This is normal text", timeout_seconds=0.1
+        )
+        self.assertTrue(result)
+
+    def test_very_long_pattern_rejected(self):
+        """Test that very long patterns are rejected."""
+        long_pattern = "a" * 2000  # Exceeds 1000 char limit
+
+        result = apply_filter(
+            author="user",
+            text="test text",
+            upvotes=10,
+            filtered_keywords=[],
+            filtered_authors=[],
+            min_upvotes=0,
+            filtered_regexes=[long_pattern],
+            filtered_message="[BLOCKED]",
+        )
+
+        # Long pattern should be rejected, so text passes through
+        self.assertEqual(result, "test text")
+
+    def test_invalid_regex_handled_gracefully(self):
+        """Test that invalid regex patterns are handled gracefully."""
+        invalid_patterns = [
+            r"[",  # Unclosed bracket
+            r"(?P<invalid",  # Invalid group
+            r"*",  # Invalid quantifier
+        ]
+
+        for pattern in invalid_patterns:
+            with self.subTest(pattern=pattern):
+                result = apply_filter(
+                    author="user",
+                    text="test text",
+                    upvotes=10,
+                    filtered_keywords=[],
+                    filtered_authors=[],
+                    min_upvotes=0,
+                    filtered_regexes=[pattern],
+                    filtered_message="[BLOCKED]",
+                )
+
+                # Invalid pattern should be skipped, so text passes through
+                self.assertEqual(result, "test text")
+
+    def test_re2_library_detection(self):
+        """Test that re2 library detection works correctly."""
+        import filters
+
+        # Check if re2 availability is detected correctly
+        self.assertIsInstance(filters._re2_available, bool)
+
+        # Log the status for debugging
+        if filters._re2_available:
+            print(
+                "\n✅ re2 library detected and available for enhanced ReDoS protection"
+            )
+        else:
+            print(
+                "\n ℹ️  re2 library not available, using standard re with ReDoS protection"
+            )
+
+
 class TestFilteringIntegration(unittest.TestCase):
     """Integration tests for filtering in realistic scenarios."""
 

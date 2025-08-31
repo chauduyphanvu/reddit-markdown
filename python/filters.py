@@ -1,19 +1,31 @@
 import logging
 import re
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union, Any
 from colored_logger import get_colored_logger
 
 logger = get_colored_logger(__name__)
 
-# Cache for compiled regex patterns
-_regex_cache: Dict[str, Optional[re.Pattern]] = {}
+# Check for re2 availability for enhanced ReDoS protection
+_re2_available = False
+try:
+    import re2
+
+    _re2_available = True
+    logger.debug("re2 library available, using for enhanced ReDoS protection")
+    # Cache for compiled regex patterns (re2 or standard re)
+    _regex_cache: Dict[str, Optional[Union[re.Pattern, Any]]] = {}
+except ImportError:
+    logger.debug("re2 library not available, using standard re with ReDoS protection")
+    # Cache for compiled regex patterns (standard re only)
+    _regex_cache: Dict[str, Optional[re.Pattern]] = {}
 
 
-def _safe_compile_regex(pattern: str) -> Optional[re.Pattern]:
+def _safe_compile_regex(pattern: str) -> Optional[Union[re.Pattern, Any]]:
     """
     Safely compile a regex pattern with validation and caching.
-    Prevents ReDoS attacks by limiting complexity and execution time.
+    Uses re2 library when available for guaranteed linear execution time,
+    otherwise falls back to standard re with comprehensive ReDoS protection.
     """
     if pattern in _regex_cache:
         return _regex_cache[pattern]
@@ -23,6 +35,20 @@ def _safe_compile_regex(pattern: str) -> Optional[re.Pattern]:
         logger.warning("Regex pattern too long or empty: %s", pattern[:100])
         _regex_cache[pattern] = None
         return None
+
+    # Use re2 if available (guaranteed linear time execution)
+    if _re2_available:
+        try:
+            compiled = re2.compile(pattern)
+            _regex_cache[pattern] = compiled
+            logger.debug("Compiled pattern with re2: %s", pattern[:50])
+            return compiled
+        except Exception as e:
+            logger.warning(
+                "Failed to compile pattern with re2: %s, error: %s", pattern, e
+            )
+            # Continue to standard re with safety checks
+            pass
 
     # Check for specific dangerous patterns that cause ReDoS (refined detection)
     dangerous_patterns = [
@@ -37,6 +63,9 @@ def _safe_compile_regex(pattern: str) -> Optional[re.Pattern]:
         r"\([^|)]*\|[^|)]*\)\*.*\1",  # (a|ab)* where there's overlap
         # Multiple consecutive quantifiers on same element (more specific)
         r"\.\*\*|\.\+\+|\.\?\?|\+\+|\*\*",  # .**, .++, etc.
+        # Multiple quantifiers on similar patterns (a*a*a* type)
+        r"[a-zA-Z0-9_]\*.*[a-zA-Z0-9_]\*.*[a-zA-Z0-9_]\*",  # a*...b*...c* patterns
+        r"[a-zA-Z0-9_]\+.*[a-zA-Z0-9_]\+.*[a-zA-Z0-9_]\+",  # a+...b+...c+ patterns
         # Catastrophic backtracking patterns
         r"\([^)]*\.[^)]*\*[^)]*\)[^)]*\.[^)]*\*",  # (.*)*.*pattern
     ]
@@ -64,10 +93,12 @@ def _safe_compile_regex(pattern: str) -> Optional[re.Pattern]:
 
 
 def _safe_regex_search(
-    pattern: re.Pattern, text: str, timeout_seconds: float = 1.0
+    pattern: Union[re.Pattern, Any], text: str, timeout_seconds: float = 1.0
 ) -> bool:
     """
     Perform a regex search with timeout protection.
+    Uses re2 when available (no timeout needed due to guaranteed linear execution),
+    otherwise uses standard re with timeout protection.
     """
     if not text:
         return False
@@ -76,8 +107,18 @@ def _safe_regex_search(
     if len(text) > 10000:
         text = text[:10000]
 
-    start_time = time.time()
     try:
+        # re2 provides guaranteed linear execution time, no timeout needed
+        if (
+            _re2_available
+            and hasattr(pattern, "search")
+            and "re2" in str(type(pattern))
+        ):
+            result = pattern.search(text)
+            return result is not None
+
+        # Standard re with timeout protection
+        start_time = time.time()
         result = pattern.search(text)
         elapsed = time.time() - start_time
 
