@@ -1,3 +1,15 @@
+## 1.13.0 (Aug 31, 2025)
+### New
+* Advanced Search & Indexing System with SQLite FTS5
+* Automated Task Scheduling with cron-like expressions
+* Modular Architecture refactor for maintainability
+* Python-Native CI/CD System with local execution
+
+### Improvements
+* Enhanced configuration for all new features
+* Performance optimizations and comprehensive testing
+* Updated documentation with user-friendly guides and examples
+
 ## 1.12.0 (Jul 17, 2025)
 ### New
 * **Authentication Support:** The script now supports authenticating with your Reddit account. This is highly recommended to avoid being rate-limited, especially when downloading a large number of posts.
