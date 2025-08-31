@@ -238,7 +238,7 @@ Examples:
             logger.info("Verifying archive integrity: %s", archive_path)
             manager = ArchiveManager()
 
-            if manager._verify_archive_integrity(str(archive_path)):
+            if manager.verify_archive_integrity(str(archive_path)):
                 logger.success("Archive integrity check passed")
                 return 0
             else:

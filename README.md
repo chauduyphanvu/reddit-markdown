@@ -160,6 +160,7 @@ The Reddit-Markdown tool now includes a **standalone archive tool** for high-per
 - **🔧 Metadata Inclusion:** Detailed archive metadata with file information and timestamps
 - **✅ Integrity Verification:** Built-in archive integrity checking and verification
 - **🎯 Directory-Based:** Archive any directory containing downloaded Reddit content
+- **🔐 Security:** Built-in protection against malicious file paths and unsafe operations
 
 #### Standalone Archive Tool Usage
 
@@ -582,7 +583,7 @@ python3 -m pytest tests/ -v
 python3 -m pytest tests/test_main.py -v             # Main application tests
 python3 -m pytest tests/test_integration.py -v      # Integration tests
 python3 -m pytest tests/test_search_*.py -v         # Search system tests
-python3 -m pytest tests/test_archive_*.py -v        # Standalone archive tool tests
+python3 -m pytest tests/test_archive_*.py -v        # Archive system tests
 ```
 
 ---
