@@ -434,23 +434,6 @@ def generate_filename(
     return file_candidate
 
 
-def markdown_to_html(md_content: str) -> str:
-    """
-    Converts a Markdown string to HTML.
-
-    :param md_content: A string containing Markdown.
-    :return: A string containing valid HTML representation of the original Markdown.
-             If the 'markdown' package is not installed, returns a <pre> fallback.
-    """
-    try:
-        import markdown
-
-        return markdown.markdown(md_content)
-    except ImportError:
-        logger.warning("markdown package not installed; using <pre> fallback.")
-        return f"<html><body><pre>{md_content}</pre></body></html>"
-
-
 def generate_unique_media_filename(url: str, media_dir: str) -> str:
     """
     Generates a unique filename for media files to avoid collisions.

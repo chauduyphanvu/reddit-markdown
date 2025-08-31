@@ -240,7 +240,7 @@ def _process_single_url(
         # Convert to HTML if required
         try:
             if settings.file_format.lower() == "html":
-                final_content = utils.markdown_to_html(raw_markdown)
+                final_content = ContentConverter.markdown_to_html(raw_markdown)
             else:
                 final_content = raw_markdown
         except Exception as e:

@@ -10,6 +10,7 @@ import time
 import requests
 
 import reddit_utils as utils
+from processing import ContentConverter
 
 
 class TestRedditUtilsBehavior(unittest.TestCase):
@@ -161,12 +162,14 @@ class TestRedditUtilsBehavior(unittest.TestCase):
     def test_markdown_to_html_conversion(self):
         """Test that Markdown is converted to HTML."""
         markdown = "# Title\n\nThis is **bold** and *italic* text."
-        html = utils.markdown_to_html(markdown)
+        html = ContentConverter.markdown_to_html(markdown)
 
-        # Should contain HTML tags
-        self.assertIn("<h1>", html.lower())
-        self.assertIn("<strong>", html.lower())
-        self.assertIn("<em>", html.lower())
+        # Should contain HTML tags (case insensitive)
+        html_lower = html.lower()
+        self.assertIn("<!doctype html>", html_lower)
+        self.assertIn("<h1", html_lower)  # h1 with id attribute
+        self.assertIn("<strong>", html_lower)
+        self.assertIn("<em>", html_lower)
 
     def test_reply_extraction(self):
         """Test that replies are extracted from Reddit data structure."""

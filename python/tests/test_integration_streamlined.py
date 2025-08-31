@@ -18,6 +18,7 @@ from url_fetcher import UrlFetcher
 from post_renderer import build_post_content
 from filters import apply_filter
 from settings import Settings
+from processing import ContentConverter
 
 
 class TestEssentialIntegration(unittest.TestCase):
@@ -303,14 +304,14 @@ class TestWorkflowIntegration(unittest.TestCase):
     def test_markdown_conversion_produces_html(self):
         """Markdown conversion should produce HTML output."""
         markdown = "# Title\n\n**Bold** text"
-        html = utils.markdown_to_html(markdown)
+        html = ContentConverter.markdown_to_html(markdown)
 
-        self.assertIn("<h1>", html.lower())
+        self.assertIn("<h1", html.lower())  # h1 with id attribute
 
     def test_markdown_conversion_handles_formatting(self):
         """Markdown conversion should handle bold formatting."""
         markdown = "# Title\n\n**Bold** text"
-        html = utils.markdown_to_html(markdown)
+        html = ContentConverter.markdown_to_html(markdown)
 
         self.assertIn("<strong>", html.lower())
 
