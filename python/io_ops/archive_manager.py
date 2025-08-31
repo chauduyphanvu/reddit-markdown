@@ -45,6 +45,7 @@ class ArchiveManager:
         max_workers: int = 4,
         chunk_size: int = 8192,
         validate_paths: bool = True,
+        validate_content: bool = True,
     ):
         """
         Initialize ArchiveManager with orchestration components.
@@ -55,6 +56,7 @@ class ArchiveManager:
             max_workers: Number of worker threads (for future parallelization)
             chunk_size: Chunk size for file operations
             validate_paths: Enable security path validation
+            validate_content: Enable content validation using magic numbers
         """
         # Determine compression format
         if compression_format == "auto":
@@ -85,9 +87,10 @@ class ArchiveManager:
         self.max_workers = max(1, min(max_workers, 8))  # Limit workers for safety
         self.chunk_size = max(1024, chunk_size)  # Minimum 1KB chunks
         self.validate_paths = validate_paths
+        self.validate_content = validate_content
 
         # Initialize components
-        self.file_collector = ArchiveFileCollector(validate_paths)
+        self.file_collector = ArchiveFileCollector(validate_paths, validate_content)
         self.metadata_manager = ArchiveMetadataManager(
             self.compression_level, chunk_size
         )
@@ -296,6 +299,7 @@ def create_archive_with_progress(
     archive_path: Optional[str] = None,
     max_workers: int = 4,
     validate_paths: bool = True,
+    validate_content: bool = True,
 ) -> str:
     """
     Convenience function to create optimized archive with progress reporting.
@@ -307,6 +311,7 @@ def create_archive_with_progress(
         archive_path: Output path (auto-generated if None)
         max_workers: Number of worker threads for parallel operations
         validate_paths: Enable security path validation
+        validate_content: Enable content validation using magic numbers
 
     Returns:
         Path to created archive
@@ -335,6 +340,7 @@ def create_archive_with_progress(
         compression_level=compression_level,
         max_workers=max_workers,
         validate_paths=validate_paths,
+        validate_content=validate_content,
     )
 
     return manager.create_archive(

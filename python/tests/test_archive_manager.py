@@ -61,6 +61,79 @@ class TestSecurityValidator(unittest.TestCase):
 
         self.assertTrue(self.validator.validate_path_safety(safe_file, base_path))
 
+    def test_content_validation_text_files(self):
+        """Test content validation for text files."""
+        # Valid text file
+        text_file = Path(self.temp_dir) / "test.txt"
+        text_file.write_text("This is a valid text file", encoding="utf-8")
+        self.assertTrue(self.validator.validate_file_content(text_file))
+
+        # Valid markdown file
+        md_file = Path(self.temp_dir) / "test.md"
+        md_file.write_text("# This is markdown content", encoding="utf-8")
+        self.assertTrue(self.validator.validate_file_content(md_file))
+
+    def test_content_validation_json_files(self):
+        """Test content validation for JSON files."""
+        # Valid JSON file
+        json_file = Path(self.temp_dir) / "test.json"
+        json_file.write_text('{"key": "value"}', encoding="utf-8")
+        self.assertTrue(self.validator.validate_file_content(json_file))
+
+        # Invalid JSON file (looks like text)
+        invalid_json = Path(self.temp_dir) / "invalid.json"
+        invalid_json.write_text("This is not JSON", encoding="utf-8")
+        self.assertFalse(self.validator.validate_file_content(invalid_json))
+
+    def test_content_validation_html_xml_files(self):
+        """Test content validation for HTML/XML files."""
+        # Valid HTML file
+        html_file = Path(self.temp_dir) / "test.html"
+        html_file.write_text(
+            "<!DOCTYPE html><html><body>Test</body></html>", encoding="utf-8"
+        )
+        self.assertTrue(self.validator.validate_file_content(html_file))
+
+        # Valid XML file
+        xml_file = Path(self.temp_dir) / "test.xml"
+        xml_file.write_text('<?xml version="1.0"?><root>Test</root>', encoding="utf-8")
+        self.assertTrue(self.validator.validate_file_content(xml_file))
+
+        # Invalid HTML file (doesn't start with <)
+        invalid_html = Path(self.temp_dir) / "invalid.html"
+        invalid_html.write_text("This is not HTML", encoding="utf-8")
+        self.assertFalse(self.validator.validate_file_content(invalid_html))
+
+    def test_content_validation_dangerous_files(self):
+        """Test detection of dangerous file types by magic numbers."""
+        # Simulate Windows executable (MZ header)
+        exe_file = Path(self.temp_dir) / "disguised.txt"
+        exe_file.write_bytes(b"MZ\x90\x00This is a disguised executable")
+        self.assertFalse(self.validator.validate_file_content(exe_file))
+
+        # Simulate ZIP file (PK header)
+        zip_file = Path(self.temp_dir) / "disguised.md"
+        zip_file.write_bytes(b"PK\x03\x04This looks like a ZIP file")
+        self.assertFalse(self.validator.validate_file_content(zip_file))
+
+    def test_content_validation_binary_in_text(self):
+        """Test detection of binary content in text files."""
+        # Text file with null bytes (suspicious)
+        binary_text = Path(self.temp_dir) / "binary.txt"
+        binary_text.write_bytes(b"This has null\x00bytes in it")
+        self.assertFalse(self.validator.validate_file_content(binary_text))
+
+    def test_content_validation_disabled(self):
+        """Test that content validation can be disabled."""
+        validator_no_content = SecurityValidator(
+            validate_paths=True, validate_content=False
+        )
+
+        # Even a dangerous file should pass when content validation is disabled
+        dangerous_file = Path(self.temp_dir) / "dangerous.txt"
+        dangerous_file.write_bytes(b"MZ\x90\x00Executable content")
+        self.assertTrue(validator_no_content.validate_file_content(dangerous_file))
+
     def test_archive_name_sanitization(self):
         """Test archive name sanitization."""
         dangerous_name = "../../../etc/passwd"
@@ -110,6 +183,75 @@ class TestFileScanner(unittest.TestCase):
         # Should exclude .exe file due to security validation
         self.assertEqual(len(files), 3)  # good1.md, good2.txt, nested.md
         self.assertEqual(stats.skipped_files, 1)  # .exe file skipped
+
+    def test_content_validation_integration(self):
+        """Test integration of content validation in file scanning."""
+        # Create a temporary directory for this test
+        temp_dir = tempfile.mkdtemp()
+
+        try:
+            # Create files with dangerous content disguised as safe extensions
+            dangerous_files = {
+                "disguised_exe.txt": b"MZ\x90\x00This is an executable disguised as txt",
+                "disguised_zip.md": b"PK\x03\x04This is a zip file disguised as markdown",
+                "valid_text.txt": b"This is genuine text content",
+                "valid_json.json": b'{"key": "value"}',
+                "invalid_json.json": b"This is not JSON content",
+            }
+
+            for filename, content in dangerous_files.items():
+                file_path = Path(temp_dir) / filename
+                file_path.write_bytes(content)
+
+            # Use scanner with content validation enabled
+            validator = SecurityValidator(validate_paths=True, validate_content=True)
+            scanner = FileScanner(validator)
+
+            source_path = Path(temp_dir)
+            files, stats = scanner.get_files_to_archive(source_path)
+
+            # Should only include legitimate files: valid_text.txt and valid_json.json
+            self.assertEqual(len(files), 2)
+            self.assertEqual(stats.skipped_files, 3)  # 3 files should be skipped
+
+            # Verify the correct files were included
+            included_files = [file[1] for file in files]  # Get archive names
+            self.assertIn("valid_text.txt", included_files)
+            self.assertIn("valid_json.json", included_files)
+            self.assertNotIn("disguised_exe.txt", included_files)
+            self.assertNotIn("disguised_zip.md", included_files)
+            self.assertNotIn("invalid_json.json", included_files)
+
+        finally:
+            import shutil
+
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+    def test_content_validation_can_be_disabled(self):
+        """Test that content validation can be disabled for compatibility."""
+        # Create a temporary directory for this test
+        temp_dir = tempfile.mkdtemp()
+
+        try:
+            # Create a file with dangerous content
+            dangerous_file = Path(temp_dir) / "disguised.txt"
+            dangerous_file.write_bytes(b"MZ\x90\x00Executable content")
+
+            # Scanner with content validation disabled
+            validator = SecurityValidator(validate_paths=True, validate_content=False)
+            scanner = FileScanner(validator)
+
+            source_path = Path(temp_dir)
+            files, stats = scanner.get_files_to_archive(source_path)
+
+            # Should include the file when content validation is disabled
+            self.assertEqual(len(files), 1)
+            self.assertEqual(stats.skipped_files, 0)
+
+        finally:
+            import shutil
+
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 class TestArchiveCreators(unittest.TestCase):

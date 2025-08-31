@@ -83,6 +83,11 @@ class FileScanner:
                 stats.skip_file()
                 return None
 
+            # Validate file content using magic numbers
+            if not self.security_validator.validate_file_content(file_path):
+                stats.skip_file()
+                return None
+
             # Get file size and validate
             file_stat = file_path.stat()
             file_size = file_stat.st_size
@@ -140,8 +145,8 @@ class FileScanner:
 class ArchiveFileCollector:
     """High-level interface for collecting files for archiving."""
 
-    def __init__(self, validate_paths: bool = True):
-        self.security_validator = SecurityValidator(validate_paths)
+    def __init__(self, validate_paths: bool = True, validate_content: bool = True):
+        self.security_validator = SecurityValidator(validate_paths, validate_content)
         self.file_scanner = FileScanner(self.security_validator)
 
     def collect_files(
