@@ -1,0 +1,38 @@
+# Node modules
+node_modules/
+
+# Build output
+main.js
+main.js.map
+
+# Development files
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test vault
+test-vault/
+.obsidian/
+
+# Environment files
+.env
+.env.local
+
+# Coverage reports
+coverage/
+*.lcov
+
+# npm debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Package manager locks (keep package-lock.json for reproducible builds)
+yarn.lock
+pnpm-lock.yaml

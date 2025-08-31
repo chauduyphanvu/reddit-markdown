@@ -1,0 +1,10 @@
+{
+	"id": "reddit-import",
+	"name": "Reddit Import",
+	"version": "1.0.0",
+	"minAppVersion": "1.5.0",
+	"description": "Import Reddit posts and comments into your Obsidian vault with automatic linking and organization",
+	"author": "Reddit-Markdown",
+	"authorUrl": "https://github.com/chauduyphanvu/reddit-markdown",
+	"isDesktopOnly": false
+}
