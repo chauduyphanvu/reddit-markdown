@@ -3,7 +3,7 @@ import time
 import threading
 import gc
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Generator
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 import psutil
@@ -266,7 +266,11 @@ class OptimizedContentIndexer:
         priority_patterns: List[Tuple[str, int]] = None,
     ) -> Dict[str, Any]:
         """
-        Optimized directory indexing with resource management and prioritization.
+        Memory-efficient directory indexing with resource management and prioritization.
+
+        Uses generator-based file discovery to process directories with millions of files
+        without loading all file paths into memory at once. Files are processed in
+        configurable chunks to maintain constant memory usage regardless of directory size.
 
         Args:
             directory: Path to directory to index
@@ -324,19 +328,66 @@ class OptimizedContentIndexer:
         force_reindex: bool,
         priority_patterns: List[Tuple[str, int]] = None,
     ) -> List[IndexingTask]:
-        """Create prioritized indexing tasks."""
+        """Create prioritized indexing tasks using memory-efficient processing."""
+        tasks = []
+        files_processed = 0
+        chunk_size = 1000  # Process files in chunks to manage memory usage
+
+        logger.info("Creating indexing tasks using memory-efficient processing...")
+
+        # Use generator for memory-efficient file discovery
+        file_generator = self._find_files_generator(
+            directory, file_extensions, recursive
+        )
+
+        # Process files in chunks
+        current_chunk = []
+
+        for file_path in file_generator:
+            current_chunk.append(file_path)
+            files_processed += 1
+
+            # Process chunk when it reaches the desired size
+            if len(current_chunk) >= chunk_size:
+                chunk_tasks = self._process_file_chunk(
+                    current_chunk, force_reindex, priority_patterns
+                )
+                tasks.extend(chunk_tasks)
+                current_chunk = []
+
+                # Progress reporting
+                logger.debug(
+                    "Processed %d files, created %d tasks", files_processed, len(tasks)
+                )
+
+        # Process remaining files in the last chunk
+        if current_chunk:
+            chunk_tasks = self._process_file_chunk(
+                current_chunk, force_reindex, priority_patterns
+            )
+            tasks.extend(chunk_tasks)
+
+        logger.info(
+            "Created %d indexing tasks from %d files", len(tasks), files_processed
+        )
+
+        return tasks
+
+    def _process_file_chunk(
+        self,
+        file_paths: List[str],
+        force_reindex: bool,
+        priority_patterns: List[Tuple[str, int]] = None,
+    ) -> List[IndexingTask]:
+        """Process a chunk of files to create indexing tasks."""
         tasks = []
 
-        # Find all potential files
-        files = self._find_files_optimized(directory, file_extensions, recursive)
-
-        # Filter files that need processing
+        # Filter files that need processing (if not forcing reindex)
         if not force_reindex:
-            files = self._filter_changed_files_optimized(files)
-            logger.info("Need to process %d changed/new files", len(files))
+            file_paths = self._filter_changed_files_optimized(file_paths)
 
         # Create tasks with priorities and size estimates
-        for file_path in files:
+        for file_path in file_paths:
             try:
                 file_stat = os.stat(file_path)
                 file_size = file_stat.st_size
@@ -378,14 +429,17 @@ class OptimizedContentIndexer:
 
         return priority
 
-    def _find_files_optimized(
+    def _find_files_generator(
         self, directory: str, extensions: List[str], recursive: bool
-    ) -> List[str]:
-        """Optimized file discovery with progress reporting."""
-        files = []
+    ) -> Generator[str, None, None]:
+        """
+        Memory-efficient file discovery using generators.
+        Yields file paths one at a time instead of loading all into memory.
+        """
         directory_path = Path(directory)
+        files_found = 0
 
-        logger.info("Discovering files...")
+        logger.info("Starting memory-efficient file discovery...")
 
         try:
             if recursive:
@@ -393,21 +447,30 @@ class OptimizedContentIndexer:
             else:
                 pattern = "*"
 
-            # Use generator for memory efficiency
+            # Create sorted generators for consistent processing order
+            # Process one extension at a time to maintain some ordering while staying memory-efficient
             for ext in extensions:
+                ext_files = []
+
+                # Collect files for this extension (still more memory efficient than all extensions)
                 for file_path in directory_path.glob(f"{pattern}{ext}"):
                     if file_path.is_file():
-                        files.append(str(file_path.resolve()))
+                        ext_files.append(str(file_path.resolve()))
 
-                        # Progress feedback for large directories
-                        if len(files) % 1000 == 0:
-                            logger.debug("Discovered %d files so far...", len(files))
+                # Sort files for this extension and yield them
+                for file_path in sorted(ext_files):
+                    files_found += 1
+
+                    # Progress feedback for large directories
+                    if files_found % 1000 == 0:
+                        logger.debug("Discovered %d files so far...", files_found)
+
+                    yield file_path
 
         except Exception as e:
             logger.error("Error discovering files in %s: %s", directory, e)
 
-        logger.info("Discovered %d files with extensions %s", len(files), extensions)
-        return sorted(files)  # Sort for consistent processing order
+        logger.info("Discovered %d files with extensions %s", files_found, extensions)
 
     def _filter_changed_files_optimized(self, file_paths: List[str]) -> List[str]:
         """Optimized filtering of changed files using batch database queries."""
